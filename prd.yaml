@@ -1,0 +1,380 @@
+#PRD.yaml
+yamlDownloadCopy code Wrapproject: transciptor-ai
+version: 2.0.0-truly-free
+owner: rfxlamia / v
+status: refined-mvp
+
+non_goals:
+  - speaker_diarization
+  - video_transcription
+  - realtime_websocket_streaming
+  - custom_model_training
+  - team_collaboration
+  - mobile_native_apps
+  - enterprise_features
+  - white_label_solution
+
+tech_stack:
+  framework: nextjs_14_app_router
+  bundler: turbopack
+  language: typescript_5
+  styles: tailwind_css_3
+  icons: lucide_react
+  list_virtualization: tanstack_virtual
+  sanitizer: dompurify
+  search: flexsearch
+  router: next_app_router
+
+  # Additional stack
+  edge_runtime: cloudflare_workers
+  edge_framework: hono
+  llm_providers:
+    - groq_cloud
+    - huggingface_inference
+    - together_ai
+    - cohere_trial
+  asr_providers:
+    - cloudflare_workers_ai
+    - transformers_js
+  cache: cloudflare_kv
+  storage: cloudflare_r2
+  database: cloudflare_d1
+
+data_sources:
+  - path: /api/providers/groq
+    type: rest_api
+    auth: api_key
+    quota: 14400_per_day
+
+  - path: /api/providers/huggingface
+    type: rest_api
+    auth: bearer_token
+    quota: 1000_per_day
+
+  - path: /api/providers/together
+    type: rest_api
+    auth: api_key
+    quota: 25_usd_credit
+
+  - path: /api/providers/cohere
+    type: rest_api
+    auth: api_key
+    quota: 3000_trial
+
+  - path: cloudflare_kv
+    type: key_value_store
+    quota: 100k_reads_per_day
+
+  - path: cloudflare_r2
+    type: object_storage
+    quota: 10gb_free
+
+routes:
+  - path: /
+    component: LandingPage
+    features: [recorder, uploader, quick_demo]
+
+  - path: /transcribe
+    component: TranscribePage
+    features: [multi_upload, queue_management, provider_status]
+
+  - path: /transcribe/[id]
+    component: TranscriptionDetail
+    features: [progressive_view, correction_toggle, export]
+
+  - path: /community
+    component: CommunityCache
+    features: [browse_corrections, contribute, upvote]
+
+  - path: /dashboard
+    component: QuotaDashboard
+    features: [provider_quotas, usage_history, estimates]
+
+  - path: /api/[...]
+    component: CloudflareWorker
+    features: [all_api_endpoints]
+
+state:
+  global:
+    transcription_queue: array[TranscriptionJob]
+    active_providers: map[string, ProviderStatus]
+    quota_remaining: map[string, number]
+    community_cache: map[string, CachedCorrection]
+    user_preferences: UserSettings
+
+  local:
+    recording_state: RecordingState
+    upload_progress: map[string, number]
+    chunk_status: map[string, ChunkStatus]
+    correction_quality: map[string, QualityScore]
+    selected_providers: array[string]
+
+schemas:
+  TranscriptionJob:
+    id: string_uuid
+    status: enum[multiple_states]
+    chunks: array[TranscriptionChunk]
+    providers: array[ProviderUsage]
+    metadata: JobMetadata
+
+  TranscriptionChunk:
+    index: integer
+    times: object[start, end]
+    audioHash: string_sha256
+    transcription: object[raw, quick, enhanced, final]
+    provider: string_optional
+    cached: boolean
+
+  ProviderStatus:
+    name: string
+    available: boolean
+    quotaUsed: integer
+    quotaLimit: integer
+    resetAt: datetime
+    latency: integer_ms
+
+  CachedCorrection:
+    audioHash: string
+    text: string
+    corrections: string
+    confidence: float
+    upvotes: integer
+    contributor: string_anonymous
+
+components:
+  SmartRecorder:
+    props: [onChunk, maxDuration, enableVAD]
+    state: [isRecording, chunks, waveform]
+    events: [start, stop, chunk, vad_detect]
+
+  MultiProviderCorrector:
+    props: [text, providers, strategy]
+    state: [activeProvider, fallbackQueue, corrections]
+    events: [correct, fallback, complete]
+
+  ProgressiveTranscriptView:
+    props: [chunks, showComparison, editable]
+    state: [viewMode, selectedChunk, enhancements]
+    events: [select, edit, enhance, export]
+
+  QuotaIndicator:
+    props: [provider, current, max, resetTime]
+    state: [percentage, timeToReset]
+    events: [refresh, warn, exhausted]
+
+  CommunityContributor:
+    props: [audioHash, transcription]
+    state: [contribution, upvotes]
+    events: [submit, upvote, verify]
+
+interactions:
+  smart_recording:
+    trigger: record_button_or_R_key
+    flow: check_mic -> start_vad -> chunk_30s -> upload_chunk -> transcribe -> correct
+
+  multi_file_upload:
+    trigger: drag_drop_or_browse
+    flow: validate_all -> queue -> chunk_parallel -> process_sequential
+
+  progressive_correction:
+    trigger: automatic_on_chunk
+    flow: quick_correct -> display -> enhance_background -> update_display
+
+  provider_fallback:
+    trigger: quota_exceeded_or_error
+    flow: check_next -> switch -> retry -> cache_result
+
+  community_cache:
+    trigger: before_api_call
+    flow: check_hash -> retrieve_if_exists -> use_cached -> skip_api
+
+performance_budgets:
+  fcp: 1200ms
+  tti: 2500ms
+  cls: 0.05
+  bundle_main: 150kb_gzipped
+  bundle_transformers: 400mb_lazy
+  memory_idle: 200mb
+  memory_active: 400mb
+  api_response_p50: 500ms
+  api_response_p95: 2000ms
+  cache_hit_ratio: 60_percent
+
+accessibility:
+  wcag_level: AA
+  keyboard: full_navigation
+  screen_reader: comprehensive_labels
+  focus: visible_indicators
+  motion: reduced_motion_support
+  contrast: 7_to_1_minimum
+  targets: 48px_minimum
+  live_regions: status_updates
+  skip_links: enabled
+
+telemetry:
+  metrics:
+    - transcription_duration
+    - correction_improvement
+    - provider_latencies
+    - cache_hit_rates
+    - quota_usage_per_provider
+    - user_retention
+
+  events:
+    - transcription_started
+    - chunk_completed
+    - provider_switched
+    - correction_applied
+    - cache_hit
+    - cache_miss
+    - community_contribution
+    - export_completed
+
+  errors:
+    - provider_failure
+    - quota_exceeded
+    - network_timeout
+    - invalid_audio
+
+security:
+  transport: https_only
+  headers:
+    - strict_transport_security
+    - x_content_type_options
+    - x_frame_options
+    - content_security_policy
+  rate_limiting:
+    per_ip: 100_per_hour
+    per_user: 50_files_per_day
+  validation:
+    file_size: 100mb_max
+    file_type: audio_only
+    text_input: sanitized
+  privacy:
+    auto_delete: 7_days
+    anonymization: uuid_only
+    no_pii_logging: enforced
+
+build:
+  pre_build:
+    - validate_env_vars
+    - check_provider_keys
+    - test_provider_connectivity
+
+  build:
+    - next_build_production
+    - generate_types
+    - bundle_workers
+
+  post_build:
+    - deploy_workers
+    - warm_caches
+    - health_checks
+
+  deploy:
+    - cloudflare_workers_deploy
+    - vercel_deploy
+    - update_kv_schema
+
+kpi:
+  accuracy:
+    wer: below_20_percent
+    correction_improvement: minimum_10_percent
+
+  performance:
+    latency_p95: under_3_seconds
+    throughput: 100_concurrent_users
+
+  cost:
+    operational: 0_usd_under_100_users
+    infrastructure: 0_usd_all_free_tiers
+
+  usage:
+    daily_active_users: 50_minimum
+    transcriptions_per_day: 500_minimum
+    cache_effectiveness: 60_percent_hits
+
+  quality:
+    user_rating: above_4_stars
+    bug_rate: below_1_percent
+    uptime: 99_percent
+
+acceptance_criteria:
+  - multi_provider_fallback_working
+  - progressive_enhancement_visible
+  - community_cache_functional
+  - quota_management_accurate
+  - zero_cost_validated
+  - performance_targets_met
+  - accessibility_compliant
+  - security_hardened
+  - export_formats_working
+  - mobile_responsive
+
+qa_e2e:
+  - test: provider_cascade
+    steps: exhaust_primary_quota
+    expect: seamless_fallback_to_secondary
+
+  - test: batch_processing
+    steps: upload_5_files_simultaneously
+    expect: all_process_successfully
+
+  - test: cache_effectiveness
+    steps: submit_duplicate_audio
+    expect: second_from_cache_under_500ms
+
+  - test: progressive_enhancement
+    steps: observe_correction_stages
+    expect: quick_then_enhanced_visible
+
+  - test: quota_exhaustion
+    steps: exhaust_all_providers
+    expect: browser_fallback_activates
+
+  - test: community_contribution
+    steps: submit_manual_correction
+    expect: available_to_others
+
+  - test: memory_stability
+    steps: process_50_chunks
+    expect: no_memory_leak
+
+  - test: network_resilience
+    steps: disconnect_during_process
+    expect: graceful_recovery
+
+risks:
+  technical:
+    - all_providers_down_simultaneously
+    - transformers_js_too_heavy
+    - llm_hallucination_severe
+    - cache_corruption
+
+  business:
+    - provider_policy_changes
+    - abuse_for_illegal_content
+    - viral_usage_exceeds_capacity
+
+  mitigation:
+    - abstract_provider_interface
+    - community_self_hosted_backup
+    - confidence_scoring
+    - gradual_rollout
+    - terms_of_service
+
+timeline_days:
+  d1: Setup monorepo, Worker boilerplate, provider abstractions
+  d2: Implement Groq provider with quota management
+  d3: Add HuggingFace and fallback logic
+  d4: Smart batching and request optimization
+  d5: Progressive enhancement pipeline
+  d6: Community cache with KV implementation
+  d7: Frontend SSE client and transcript viewer
+  d8: Quota dashboard and provider status
+  d9: Export functionality all formats
+  d10: Transformers.js integration
+  d11: Testing provider cascade and fallbacks
+  d12: Performance optimization and caching
+  d13: Security hardening and rate limiting
+  d14: Final QA and production deployment

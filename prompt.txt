@@ -1,0 +1,829 @@
+"anda adalah senior full-stack engineer dengan pengalaman 15 tahun. anda bisa membuat code efektif, efisien, production ready. dalam bekerja, anda menggunakan mcp context7 untuk mengetahui library version terbaru, menggunakan mcp sequential thinking untuk membagi tugas agar runut dan setiap target tercapai. saya adalah klien ekslusif anda. saat ini, saya ingin membuat sebuah web app untuk transkripsi suara ke teks (bahasa indonesia). pipeline nya tidak hanya mengandalkan satu jenis model transkripter, tapi juga model llm sebagai corrector hasil transkrip mentah. aku sudah menyusun PRD final untuk MVP dengan target zero cost dengan mengandalkan free model dan penyedia api gratis. bacalah [@prd.md](file:///home/v/project/transcriptorAI/prd.md) untuk memahami requirement product yang akan dibuat berdasarkan apa yang saya jelaskan. kemudian, baca juga [@prd.yaml](file:///home/v/project/transcriptorAI/prd.yaml) sebagai arahan lebih ringkas yang terstruktur. setelah anda membaca dan memvalidasi PRD yang telah dibuat, kerjakan secara bertahap dan efektif berdasarkan konteks yang ada di file [@step.md](file:///home/v/project/transcriptorAI/step.md) . dalam mengerjakan, selalu periksa versi library terbaru terlebih dahulu yang paling stabil dengan menggunakan mcp. buat juga code debug dan error handling untuk debugging jika ada masalah saat testing. mulai sekarang, dan simpan hasil pekerjaan anda di [@transcriptorAI](file:///home/v/project/transcriptorAI/) ."
+
+saya ingin membuat sebuah web app untuk transkripsi suara ke teks (bahasa indonesia). pipeline nya tidak hanya mengandalkan satu jenis model transkripter, tapi juga model llm sebagai corrector hasil transkrip mentah. aku sudah menyusun PRD final untuk MVP dengan target zero cost dengan mengandalkan free model dan penyedia api gratis. tugas anda adalah membagi step by step pengerjaan secara terstruktu dalam format bullet point dan  penyiapan environtment key yang dibutuhkan dalam prd.
+berikut prd.md dan prd.yaml nya :
+
+#PRD.md
+1) Ringkasan Eksekutif
+Tujuan: Membangun web app transkripsi suara-ke-teks Bahasa Indonesia dengan pipeline dual-model (ASR + Multi-Provider LLM correction) yang mencapai zero-cost sesungguhnya melalui strategi smart fallback, batching, dan maksimalisasi multiple free-tier providers.
+Output fase ini:
+
+* Web app dengan multi-provider LLM fallback system (Groq, HF, Together, Cohere)
+* Smart quota management untuk 20,000+ corrections/day gratis
+* Progressive correction dengan immediate + enhanced results
+* Caching layer untuk minimize API calls
+* Community correction sharing system
+* True $0 operational cost untuk <100 users/day
+
+2) Ruang Lingkup
+MVP (wajib):
+
+* Upload/rekam audio hingga 10 menit (chunk 30 detik)
+* ASR via Cloudflare Workers AI (10 min/day) + Transformers.js fallback
+* Multi-tier LLM correction (Groq → HF → Together → Cohere → Local)
+* Smart batching (5 segments per LLM request)
+* Response caching dengan Cloudflare KV
+* Progressive enhancement (quick → enhanced correction)
+* SSE streaming untuk real-time updates
+* Export TXT/SRT dengan timestamp
+* Community cache untuk popular corrections
+* Quota dashboard real-time
+
+Non‑goals (fase ini):
+
+* Speaker diarization
+* Video transcription
+* Real-time WebSocket streaming
+* Custom model fine-tuning
+* Team collaboration
+* Mobile native app
+* Batch >10 files sekaligus
+* Translation ke bahasa lain
+* Custom domain/branding
+
+3) Asumsi & Batasan
+Asumsi:
+
+* User memiliki browser modern (Chrome 90+, Firefox 88+, Safari 14+)
+* Koneksi internet stabil minimal 1 Mbps
+* Audio dominan Bahasa Indonesia (sedikit code-switching OK)
+* Device minimal 4GB RAM untuk Transformers.js fallback
+* User bersedia menunggu 2-3 detik untuk enhanced correction
+
+Batasan:
+
+* Groq: 30 req/min, 14,400 req/day
+* HuggingFace: ~1,000 req/day
+* Together AI: $25 free credit (once)
+* Cohere: 100 calls/minute trial
+* Workers AI: 10 menit audio/day
+* Cloudflare KV: 100k reads/day
+* R2: 10GB storage free
+* Max file size: 100MB per upload
+
+4) Persona & Use Case
+Persona Primer: Content Creator Budget-Conscious
+
+* YouTuber/Podcaster Indonesia emerging
+* Produksi 2-3 video/minggu @ 5-10 menit
+* Butuh subtitle akurat tanpa subscription
+* Tech-savvy menengah, paham cloud basics
+* Device: Laptop mid-range 8GB RAM
+
+Persona Sekunder: Mahasiswa Skripsi
+
+* Transkripsi wawancara penelitian (5-10 interviews)
+* Budget sangat terbatas (idealnya gratis)
+* Butuh akurasi tinggi untuk analisis kualitatif
+* Privacy-conscious (data penelitian sensitif)
+* Familiar dengan Google Docs/Word
+
+Use Cases Utama:
+
+1. Upload rekaman podcast 8 menit → immediate transcription → enhanced correction → export SRT
+2. Record Zoom interview → apply glossary istilah teknis → progressive enhancement → copy to thesis
+3. Batch process 5 wawancara → leverage community cache → export semua ke DOCX
+4. Live record presentasi → real-time rough transcript → background enhancement → final PDF
+
+5) Arsitektur Frontend (tingkat tinggi)
+┌─────────────────┐      ┌──────────────────┐      ┌─────────────────┐
+│   Browser UI    │─────▶│  CF Worker Edge  │─────▶│  Workers AI     │
+│  Next.js/React  │◀─────│   (Orchestrator) │◀─────│  (ASR Primary)  │
+└─────────────────┘ SSE  └──────────────────┘      └─────────────────┘
+        │                         │                          │
+        │                         ▼                     [Fallback]
+        │                 ┌──────────────────┐              ▼
+        │                 │  Smart LLM Router│     ┌─────────────────┐
+        │                 └──────────────────┘     │ Transformers.js │
+        │                         │                 │  (Browser ASR)  │
+        ▼                         ▼                 └─────────────────┘
+┌─────────────────┐      ┌──────────────────┐
+│  IndexedDB      │      │   Multi-Provider  │
+│  Local Cache    │      │   LLM Fallback    │
+└─────────────────┘      │  ┌────────────┐  │
+                         │  │   Groq     │  │
+┌─────────────────┐      │  ├────────────┤  │
+│  Community      │◀────▶│  │HuggingFace │  │
+│  Cache (KV)     │      │  ├────────────┤  │
+└─────────────────┘      │  │ Together   │  │
+                         │  ├────────────┤  │
+                         │  │  Cohere    │  │
+                         │  └────────────┘  │
+                         └──────────────────┘
+
+6) Data Model (draft)
+typescriptDownloadCopy code Wrapinterface TranscriptionJob {
+  id: string
+  userId: string // anonymous UUID
+  status: 'uploading' | 'chunking' | 'transcribing' | 'correcting' | 'enhancing' | 'done' | 'error'
+  audioUrl?: string // R2 temporary URL
+  duration: number
+  chunks: TranscriptionChunk[]
+  providers: ProviderUsage[]
+  metadata: {
+    filename: string
+    language: 'id' | 'id-en' // Indonesian or mixed
+    glossary?: string[]
+    createdAt: Date
+    expiresAt: Date // 7 days
+    quality: QualityMetrics
+  }
+}
+
+interface TranscriptionChunk {
+  index: number
+  startTime: number
+  endTime: number
+  audioHash: string // for community cache
+  transcription: {
+    raw: string // ASR output
+    quick?: string // immediate correction (Phi-3)
+    enhanced?: string // enhanced correction (Groq/HF)
+    final: string // best available
+    confidence: number
+  }
+  correctionProvider?: string // which LLM was used
+  cached: boolean // from community cache?
+}
+
+interface ProviderUsage {
+  name: 'groq' | 'huggingface' | 'together' | 'cohere' | 'local'
+  requestsUsed: number
+  quotaRemaining: number
+  resetAt: Date
+  averageLatency: number
+}
+
+interface QualityMetrics {
+  wer?: number // word error rate if reference available
+  corrections: number // number of corrections made
+  enhancement: number // % improvement from raw
+  userRating?: 1 | 2 | 3 | 4 | 5
+}
+
+interface CommunityContribution {
+  audioHash: string
+  transcription: string
+  corrections: string
+  language: string
+  upvotes: number
+  contributor: string // anonymous ID
+  verifiedBy?: string[] // other users who verified
+}
+7) Komponen UI (MVP)
+
+* SmartRecorder: MediaRecorder + VAD + real-time waveform + chunk indicator
+* MultiUploader: Drag-drop dengan queue management + format validation
+* ProgressiveTranscriptView:
+
+Raw transcript (immediate)
+Quick correction badge
+Enhanced correction indicator
+Side-by-side comparison mode
+
+
+* ProviderStatus: Real-time quota bars untuk setiap provider
+* GlossaryManager: Add/remove/import domain terms
+* CommunityCache: Toggle use/contribute community corrections
+* ExportPanel: Multi-format (TXT/SRT/DOCX/JSON) dengan quality indicators
+* QuotaDashboard: Visual quotas semua providers + reset timers
+* CorrectionToggle: 3-way (Off/Quick/Enhanced)
+
+8) Interaksi Kunci & Shortcut
+
+* Space: Play/pause audio playback
+* R: Toggle recording
+* Cmd/Ctrl+Enter: Force enhance current segment
+* Tab: Navigate between segments
+* E: Quick export menu
+* Q: Toggle quality view (raw vs corrected)
+* C: Toggle community cache
+* 1-5: Rate current transcription
+* Cmd/Ctrl+B: Batch process queued files
+* Escape: Cancel current operation
+* Arrow keys: Navigate chunks when focused
+
+9) Aksesibilitas (A11y)
+
+* ARIA live regions untuk status updates
+* Keyboard navigation lengkap dengan visible focus
+* Screen reader announcements untuk provider switches
+* Contrast ratio WCAG AAA untuk critical text
+* Reduced motion mode untuk progress indicators
+* Audio descriptions untuk waveform visualization
+* Skip links untuk navigation
+* Error messages dengan clear actions
+* Touch targets minimum 48x48px
+* Color-blind safe indicators (not just color)
+
+10) Performa & Budget
+Performance Metrics:
+
+* FCP < 1.2s (tanpa model load)
+* TTI < 2.5s
+* CLS < 0.05
+* Bundle size < 150KB initial (lazy load models)
+* Transformers.js model: lazy load on-demand (~400MB)
+* Memory usage < 400MB active (tanpa model)
+* Cache hit ratio > 60% setelah 1 minggu
+
+Resource Quotas:
+
+* API calls: max 5 concurrent
+* Batch size: 5 segments per LLM call
+* Cache: 100MB IndexedDB per user
+* Upload: chunk setiap 1MB
+* Retry: exponential backoff 1s, 2s, 4s, 8s
+
+Free Tier Maximization:
+
+* Groq: 14,400 req/day (primary)
+* HuggingFace: 1,000 req/day (secondary)
+* Together: $25 credit = ~2000 corrections
+* Cohere: 3,000 req trial
+* Total capacity: ~20,000 corrections/day FREE
+
+11) Keamanan & Privasi
+
+* HTTPS only, HSTS enabled
+* CSP headers strict, no inline scripts
+* Audio encrypted at rest di R2
+* Auto-delete setelah 7 hari (GDPR compliant)
+* Anonymous user IDs (UUID v4)
+* No PII dalam logs
+* Rate limiting:
+
+Per IP: 100 req/hour
+Per user: 50 files/day
+Per chunk: 30 seconds max
+
+
+* Input sanitization semua text fields
+* XSS protection via DOMPurify
+* Secure headers (X-Frame-Options, X-Content-Type-Options)
+* Optional: client-side E2E encryption
+
+12) Theming
+
+* Design System:
+
+Primary: Indigo-600 (#4f46e5)
+Success: Emerald-600 (#059669)
+Warning: Amber-600 (#d97706)
+Error: Rose-600 (#e11d48)
+Neutral: Zinc scale
+
+
+* Typography:
+
+Font: Inter var + IBM Plex Mono (code)
+Scale: 14/16/18/24/32px
+
+
+* Spacing: 4px grid (4, 8, 12, 16, 24, 32, 48)
+* Dark mode: Auto-detect + manual toggle
+* Motion: Respect prefers-reduced-motion
+* Breakpoints: 640/768/1024/1280px
+
+13) Risiko, Antitesis, dan Skenario Terburuk
+Risiko Teknis:
+
+1.
+Semua provider limit tercapai bersamaan
+
+Mitigasi: Community cache + browser-only mode
+Fallback: Pure Transformers.js operation
+
+
+2.
+Model Transformers.js terlalu berat untuk device user
+
+Mitigasi: Deteksi RAM, suggest desktop/upgrade
+Fallback: Server-side queue untuk process nanti
+
+
+3.
+LLM hallucination mengubah makna
+
+Mitigasi: Confidence scoring, show original
+Fallback: Flag low-confidence untuk manual review
+
+
+4.
+Groq/HF mengubah policy jadi berbayar
+
+Mitigasi: Abstract provider interface, easy switch
+Fallback: Community self-hosted model pool
+
+
+
+Risiko Bisnis:
+
+1.
+User abuse untuk content illegal
+
+Mitigasi: Audio fingerprinting, flag suspicious
+Response: Terms of Service, report mechanism
+
+
+2.
+Viral usage melebihi all quotas
+
+Mitigasi: Waitlist, queue system, premium tier ready
+Response: Gradual rollout, usage analytics
+
+
+
+Worst Case Scenarios:
+
+* Cloud providers down → Full browser mode, P2P via WebRTC
+* Mass quota exhaustion → Queue system, notify when ready
+* Data breach → All data ephemeral, auto-delete
+* Legal takedown → Modular architecture, can remove features
+
+14) Kriteria Penerimaan (DoD)
+
+*  Upload 10-min audio berhasil dengan chunking otomatis
+*  Transcribe Indonesia dengan WER <20% (audio bersih)
+*  LLM correction improve accuracy minimal 10%
+*  Provider fallback seamless tanpa error user-facing
+*  5 providers integrated dengan auto-switching
+*  Cache hit ratio >50% untuk common phrases
+*  Community contributions functional
+*  Progressive enhancement visible dalam 3 detik
+*  Export SRT dengan timestamp akurat ±500ms
+*  Quota dashboard real-time update
+*  Zero cost validated untuk 50 users/day
+*  Load time <2s di 4G network
+*  Mobile responsive 320-1920px
+*  Dark mode tanpa UI glitches
+*  100 sequential transcriptions tanpa memory leak
+
+15) QA — Kasus Uji Inti
+
+1. Provider Cascade Test
+
+Exhaust Groq quota → auto-switch HF → verify seamless
+
+
+2. Batch Upload Test
+
+Upload 5 files × 5MB → all process → no timeout
+
+
+3. Quality Regression Test
+
+Poor audio → warning → still output → measure WER
+
+
+4. Cache Effectiveness
+
+Repeat same audio 3x → 2nd/3rd from cache → <500ms
+
+
+5. Progressive Enhancement
+
+Watch quick → enhanced transition → verify improvement
+
+
+6. Community Contribution
+
+Submit correction → appear for others → upvote works
+
+
+7. Quota Exhaustion Recovery
+
+Hit all limits → browser fallback → still functional
+
+
+8. Concurrent Users
+
+10 users simultaneously → no race conditions
+
+
+9. Memory Leak Test
+
+Process 50 chunks → memory stable → no crash
+
+
+10. Network Resilience
+
+Disconnect mid-process → reconnect → resume/retry
+
+
+
+16) Roadmap
+Week 1-2 (MVP Core):
+
+* Day 1-2: Setup monorepo, Cloudflare Worker, multi-provider abstraction
+* Day 3-4: Implement Groq + HuggingFace providers with fallback
+* Day 5-6: Smart batching, quota management system
+* Day 7-8: Progressive enhancement pipeline
+* Day 9-10: Community cache dengan KV
+* Day 11-12: Frontend SSE integration, transcript viewer
+* Day 13-14: Testing, optimization, deploy
+
+Week 3-4 (Enhancement):
+
+* Transformers.js browser fallback complete
+* Together AI + Cohere integration
+* Advanced caching strategies
+* Export formats (DOCX, VTT)
+* Glossary system with persistence
+
+Month 2:
+
+* Local Phi-3 deployment option
+* P2P correction sharing via WebRTC
+* Batch processing UI
+* Analytics dashboard
+* Premium tier preparation (Stripe ready)
+
+Month 3:
+
+* Speaker diarization (pyannote)
+* Video support (extract audio)
+* API for developers
+* Mobile PWA enhanced
+* Self-host documentation
+
+#PRD.yaml
+yamlDownloadCopy code Wrapproject: indonesian-transcription-zerocost
+version: 2.0.0-truly-free
+owner: rfxlamia / v
+status: refined-mvp
+
+non_goals:
+  - speaker_diarization
+  - video_transcription
+  - realtime_websocket_streaming
+  - custom_model_training
+  - team_collaboration
+  - mobile_native_apps
+  - enterprise_features
+  - white_label_solution
+
+tech_stack:
+  framework: nextjs_14_app_router
+  bundler: turbopack
+  language: typescript_5
+  styles: tailwind_css_3
+  icons: lucide_react
+  list_virtualization: tanstack_virtual
+  sanitizer: dompurify
+  search: flexsearch
+  router: next_app_router
+
+  # Additional stack
+  edge_runtime: cloudflare_workers
+  edge_framework: hono
+  llm_providers:
+    - groq_cloud
+    - huggingface_inference
+    - together_ai
+    - cohere_trial
+  asr_providers:
+    - cloudflare_workers_ai
+    - transformers_js
+  cache: cloudflare_kv
+  storage: cloudflare_r2
+  database: cloudflare_d1
+
+data_sources:
+  - path: /api/providers/groq
+    type: rest_api
+    auth: api_key
+    quota: 14400_per_day
+
+  - path: /api/providers/huggingface
+    type: rest_api
+    auth: bearer_token
+    quota: 1000_per_day
+
+  - path: /api/providers/together
+    type: rest_api
+    auth: api_key
+    quota: 25_usd_credit
+
+  - path: /api/providers/cohere
+    type: rest_api
+    auth: api_key
+    quota: 3000_trial
+
+  - path: cloudflare_kv
+    type: key_value_store
+    quota: 100k_reads_per_day
+
+  - path: cloudflare_r2
+    type: object_storage
+    quota: 10gb_free
+
+routes:
+  - path: /
+    component: LandingPage
+    features: [recorder, uploader, quick_demo]
+
+  - path: /transcribe
+    component: TranscribePage
+    features: [multi_upload, queue_management, provider_status]
+
+  - path: /transcribe/[id]
+    component: TranscriptionDetail
+    features: [progressive_view, correction_toggle, export]
+
+  - path: /community
+    component: CommunityCache
+    features: [browse_corrections, contribute, upvote]
+
+  - path: /dashboard
+    component: QuotaDashboard
+    features: [provider_quotas, usage_history, estimates]
+
+  - path: /api/[...]
+    component: CloudflareWorker
+    features: [all_api_endpoints]
+
+state:
+  global:
+    transcription_queue: array[TranscriptionJob]
+    active_providers: map[string, ProviderStatus]
+    quota_remaining: map[string, number]
+    community_cache: map[string, CachedCorrection]
+    user_preferences: UserSettings
+
+  local:
+    recording_state: RecordingState
+    upload_progress: map[string, number]
+    chunk_status: map[string, ChunkStatus]
+    correction_quality: map[string, QualityScore]
+    selected_providers: array[string]
+
+schemas:
+  TranscriptionJob:
+    id: string_uuid
+    status: enum[multiple_states]
+    chunks: array[TranscriptionChunk]
+    providers: array[ProviderUsage]
+    metadata: JobMetadata
+
+  TranscriptionChunk:
+    index: integer
+    times: object[start, end]
+    audioHash: string_sha256
+    transcription: object[raw, quick, enhanced, final]
+    provider: string_optional
+    cached: boolean
+
+  ProviderStatus:
+    name: string
+    available: boolean
+    quotaUsed: integer
+    quotaLimit: integer
+    resetAt: datetime
+    latency: integer_ms
+
+  CachedCorrection:
+    audioHash: string
+    text: string
+    corrections: string
+    confidence: float
+    upvotes: integer
+    contributor: string_anonymous
+
+components:
+  SmartRecorder:
+    props: [onChunk, maxDuration, enableVAD]
+    state: [isRecording, chunks, waveform]
+    events: [start, stop, chunk, vad_detect]
+
+  MultiProviderCorrector:
+    props: [text, providers, strategy]
+    state: [activeProvider, fallbackQueue, corrections]
+    events: [correct, fallback, complete]
+
+  ProgressiveTranscriptView:
+    props: [chunks, showComparison, editable]
+    state: [viewMode, selectedChunk, enhancements]
+    events: [select, edit, enhance, export]
+
+  QuotaIndicator:
+    props: [provider, current, max, resetTime]
+    state: [percentage, timeToReset]
+    events: [refresh, warn, exhausted]
+
+  CommunityContributor:
+    props: [audioHash, transcription]
+    state: [contribution, upvotes]
+    events: [submit, upvote, verify]
+
+interactions:
+  smart_recording:
+    trigger: record_button_or_R_key
+    flow: check_mic -> start_vad -> chunk_30s -> upload_chunk -> transcribe -> correct
+
+  multi_file_upload:
+    trigger: drag_drop_or_browse
+    flow: validate_all -> queue -> chunk_parallel -> process_sequential
+
+  progressive_correction:
+    trigger: automatic_on_chunk
+    flow: quick_correct -> display -> enhance_background -> update_display
+
+  provider_fallback:
+    trigger: quota_exceeded_or_error
+    flow: check_next -> switch -> retry -> cache_result
+
+  community_cache:
+    trigger: before_api_call
+    flow: check_hash -> retrieve_if_exists -> use_cached -> skip_api
+
+performance_budgets:
+  fcp: 1200ms
+  tti: 2500ms
+  cls: 0.05
+  bundle_main: 150kb_gzipped
+  bundle_transformers: 400mb_lazy
+  memory_idle: 200mb
+  memory_active: 400mb
+  api_response_p50: 500ms
+  api_response_p95: 2000ms
+  cache_hit_ratio: 60_percent
+
+accessibility:
+  wcag_level: AA
+  keyboard: full_navigation
+  screen_reader: comprehensive_labels
+  focus: visible_indicators
+  motion: reduced_motion_support
+  contrast: 7_to_1_minimum
+  targets: 48px_minimum
+  live_regions: status_updates
+  skip_links: enabled
+
+telemetry:
+  metrics:
+    - transcription_duration
+    - correction_improvement
+    - provider_latencies
+    - cache_hit_rates
+    - quota_usage_per_provider
+    - user_retention
+
+  events:
+    - transcription_started
+    - chunk_completed
+    - provider_switched
+    - correction_applied
+    - cache_hit
+    - cache_miss
+    - community_contribution
+    - export_completed
+
+  errors:
+    - provider_failure
+    - quota_exceeded
+    - network_timeout
+    - invalid_audio
+
+security:
+  transport: https_only
+  headers:
+    - strict_transport_security
+    - x_content_type_options
+    - x_frame_options
+    - content_security_policy
+  rate_limiting:
+    per_ip: 100_per_hour
+    per_user: 50_files_per_day
+  validation:
+    file_size: 100mb_max
+    file_type: audio_only
+    text_input: sanitized
+  privacy:
+    auto_delete: 7_days
+    anonymization: uuid_only
+    no_pii_logging: enforced
+
+build:
+  pre_build:
+    - validate_env_vars
+    - check_provider_keys
+    - test_provider_connectivity
+
+  build:
+    - next_build_production
+    - generate_types
+    - bundle_workers
+
+  post_build:
+    - deploy_workers
+    - warm_caches
+    - health_checks
+
+  deploy:
+    - cloudflare_workers_deploy
+    - vercel_deploy
+    - update_kv_schema
+
+kpi:
+  accuracy:
+    wer: below_20_percent
+    correction_improvement: minimum_10_percent
+
+  performance:
+    latency_p95: under_3_seconds
+    throughput: 100_concurrent_users
+
+  cost:
+    operational: 0_usd_under_100_users
+    infrastructure: 0_usd_all_free_tiers
+
+  usage:
+    daily_active_users: 50_minimum
+    transcriptions_per_day: 500_minimum
+    cache_effectiveness: 60_percent_hits
+
+  quality:
+    user_rating: above_4_stars
+    bug_rate: below_1_percent
+    uptime: 99_percent
+
+acceptance_criteria:
+  - multi_provider_fallback_working
+  - progressive_enhancement_visible
+  - community_cache_functional
+  - quota_management_accurate
+  - zero_cost_validated
+  - performance_targets_met
+  - accessibility_compliant
+  - security_hardened
+  - export_formats_working
+  - mobile_responsive
+
+qa_e2e:
+  - test: provider_cascade
+    steps: exhaust_primary_quota
+    expect: seamless_fallback_to_secondary
+
+  - test: batch_processing
+    steps: upload_5_files_simultaneously
+    expect: all_process_successfully
+
+  - test: cache_effectiveness
+    steps: submit_duplicate_audio
+    expect: second_from_cache_under_500ms
+
+  - test: progressive_enhancement
+    steps: observe_correction_stages
+    expect: quick_then_enhanced_visible
+
+  - test: quota_exhaustion
+    steps: exhaust_all_providers
+    expect: browser_fallback_activates
+
+  - test: community_contribution
+    steps: submit_manual_correction
+    expect: available_to_others
+
+  - test: memory_stability
+    steps: process_50_chunks
+    expect: no_memory_leak
+
+  - test: network_resilience
+    steps: disconnect_during_process
+    expect: graceful_recovery
+
+risks:
+  technical:
+    - all_providers_down_simultaneously
+    - transformers_js_too_heavy
+    - llm_hallucination_severe
+    - cache_corruption
+
+  business:
+    - provider_policy_changes
+    - abuse_for_illegal_content
+    - viral_usage_exceeds_capacity
+
+  mitigation:
+    - abstract_provider_interface
+    - community_self_hosted_backup
+    - confidence_scoring
+    - gradual_rollout
+    - terms_of_service
+
+timeline_days:
+  d1: Setup monorepo, Worker boilerplate, provider abstractions
+  d2: Implement Groq provider with quota management
+  d3: Add HuggingFace and fallback logic
+  d4: Smart batching and request optimization
+  d5: Progressive enhancement pipeline
+  d6: Community cache with KV implementation
+  d7: Frontend SSE client and transcript viewer
+  d8: Quota dashboard and provider status
+  d9: Export functionality all formats
+  d10: Transformers.js integration
+  d11: Testing provider cascade and fallbacks
+  d12: Performance optimization and caching
+  d13: Security hardening and rate limiting
+  d14: Final QA and production deployment
