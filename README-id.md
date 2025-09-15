@@ -7,10 +7,10 @@ For the English version, please see [README.md](./README.md).
 Proyek ini dibuat untuk para kreator konten, jurnalis, mahasiswa, dan peneliti yang membutuhkan transkripsi Bahasa Indonesia yang akurat dengan anggaran terbatas.
 
 <p align="left">
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frfxlamia%2Ftranscriptor-ai"><img src="https://vercel.com/button" alt="Deploy to Vercel"></a>
-  <a href="https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Frfxlamia%2Ftranscriptor-ai"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare Workers"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="https://github.com/rfxlamia"><img src="https://img.shields.io/badge/github-rfxlamia-black?style=flat&logo=github" alt="rfxlamia on GitHub"></a>
+  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frfxlamia%2Ftranscriptor-ai"><img src="https://img.shields.io/badge/Deploy%20to-Vercel-black?style=flat-square&logo=vercel" alt="Deploy to Vercel"></a>
+  <a href="https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Frfxlamia%2Ftranscriptor-ai"><img src="https://img.shields.io/badge/Deploy%20to-Cloudflare-F38020?style=flat-square&logo=cloudflare" alt="Deploy to Cloudflare Workers"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License: MIT"></a>
+  <a href="https://github.com/rfxlamia"><img src="https://img.shields.io/badge/GitHub-rfxlamia-181717?style=flat-square&logo=github" alt="rfxlamia on GitHub"></a>
 </p>
 
 ---
