@@ -7,7 +7,7 @@ This project is built for content creators, journalists, students, and researche
 <p align="left">
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frfxlamia%2Ftranscriptor-ai"><img src="https://vercel.com/button" alt="Deploy to Vercel"></a>
   <a href="https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Frfxlamia%2Ftranscriptor-ai"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare Workers"></a>
-  <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://github.com/rfxlamia"><img src="https://img.shields.io/badge/github-rfxlamia-black?style=flat&logo=github" alt="rfxlamia on GitHub"></a>
 </p>
 
@@ -293,4 +293,3 @@ Contributions are welcome! Whether it's improving the code, suggesting features,
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE.md` file for details.
-le for details.
