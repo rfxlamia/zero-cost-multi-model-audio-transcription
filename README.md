@@ -1,3 +1,5 @@
+Untuk versi Bahasa Indonesia, silakan lihat [README-id.md](./README-id.md).
+
 # TranscriptorAI: Truly Free Indonesian Transcription
 
 **TranscriptorAI** is a powerful, zero-cost voice-to-text web application designed specifically for the Indonesian language. It leverages a sophisticated multi-provider strategy, smart batching, and community-powered caching to deliver high-quality transcriptions without the subscription fees.
