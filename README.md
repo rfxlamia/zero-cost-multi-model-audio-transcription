@@ -54,8 +54,23 @@ The system is designed as a monorepo with a Next.js frontend and a Cloudflare Wo
                          │  ├────────────┤  │
                          │  │  Cohere    │  │
                          │  └────────────┘  │
-                         └──────────────────┘
+└──────────────────┘
 ```
+
+### Progressive Pipeline (3‑Stage)
+
+```
+ASR (raw) → Quick correction → Enhanced correction
+  │               │                   │
+  ├─ send SSE: raw(chunk)            │
+  ├─ cache: RESPONSE_CACHE:raw       │
+  ▼                                   ▼
+ emit SSE quick(chunk)               emit SSE enhanced(chunk)
+ update JOB_STATE.final = quick      update JOB_STATE.final = enhanced
+ cache quick                         cache enhanced
+```
+
+SSE event types: `status`, `raw`, `quick`, `enhanced`, `done`, `error`.
 
 ## Technology Stack
 
@@ -71,6 +86,12 @@ The system is designed as a monorepo with a Next.js frontend and a Cloudflare Wo
 | **Caching**       | Cloudflare KV (Community), IndexedDB (Local)     |
 | **Storage**       | Cloudflare R2                                    |
 | **Database**      | Cloudflare D1                                    |
+
+## Quick Start
+
+- One‑liner dev: `pnpm i && pnpm dev`
+
+This runs the Next.js web app and the Cloudflare Worker orchestrator together via Turborepo.
 
 ## Getting Started
 
@@ -124,6 +145,51 @@ pnpm dev
 *   Web app will be available at `http://localhost:3000`
 *   Worker API will be available at `http://127.0.0.1:8787`
 
+## Environment Variables & Bindings
+
+Worker (Cloudflare)
+
+| Key | Required | Description |
+| --- | --- | --- |
+| `ORIGIN_WHITELIST` | yes | Comma‑separated allowed origins for CORS. |
+| `LOG_LEVEL` | no | `info` | `warn` | `error`. |
+| `APP_SECRET` | recommended | Used for light signing/nonces. |
+| `GROQ_API_KEY` | optional | Enables Groq provider; disable via `DISABLE_GROQ=1`. |
+| `HF_API_TOKEN` | optional | Enables Hugging Face Inference API; disable via `DISABLE_HF=1`. |
+| `TOGETHER_API_KEY` | optional | Reserved for Together provider. |
+| `COHERE_API_KEY` | optional | Reserved for Cohere provider. |
+| `DISABLE_GROQ` | no | `'1'` or `true` to skip Groq in router. |
+| `DISABLE_HF` | no | `'1'` or `true` to skip HF in router. |
+
+Frontend (Next.js)
+
+| Key | Required | Description |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_BASE` | yes | Base URL of Worker orchestrator (e.g. `https://your-worker.workers.dev`). |
+| `NEXT_PUBLIC_ENV` | no | `development` or `production`. |
+| `NEXT_PUBLIC_ENABLE_TRANSFORMERS` | no | Gate browser fallback (Transformers.js). |
+
+Wrangler Bindings (apps/worker/wrangler.toml)
+
+| Binding | Type | Purpose |
+| --- | --- | --- |
+| `COMMUNITY_CACHE` | KV | Community‑submitted corrections (text + meta). |
+| `RESPONSE_CACHE` | KV | Correction cache by signature `sha256(audioHash|mode|glossary)`. |
+| `QUOTA_COUNTERS` | KV | Minute/day counters, provider success/failure metrics. |
+| `JOB_STATE` | KV | Per‑job state (chunks, timestamps, stage). |
+| `R2_BUCKET` | R2 | Audio storage (original/chunks/artifacts). |
+| `DB` | D1 | Telemetry and usage tables (optional). |
+| `AI` | Workers AI | Primary ASR (Whisper‑equivalent) binding. |
+
+Quota & Limits (defaults)
+
+- LLM batch size: 5 segments
+- Minute limits (examples): Groq 30/min; Cohere 100/min
+- Day limits (examples): Groq 14,400/day; HF 1,000/day
+- Response cache TTL: 7 days
+
+See `packages/shared/constants/index.ts` and `apps/worker/src/services/quota.ts`.
+
 ## Project Structure
 
 The project is a monorepo managed by pnpm and Turborepo.
@@ -159,9 +225,72 @@ Our goal is to continuously improve the accuracy, speed, and feature set of Tran
 - [ ] Self-hosting Documentation
 
 ## Contributing
+## Deployment Guide
+
+Cloudflare Workers (orchestrator)
+
+1) Configure bindings in `apps/worker/wrangler.toml` (KV, R2, D1, AI).
+2) Set secrets:
+
+```bash
+cd apps/worker
+wrangler secret put GROQ_API_KEY
+wrangler secret put HF_API_TOKEN
+wrangler secret put APP_SECRET
+# optional: TOGETHER_API_KEY, COHERE_API_KEY, TURNSTILE_SECRET
+```
+
+3) Deploy:
+
+```bash
+pnpm -F @transcriptorai/worker deploy
+```
+
+Next.js (Vercel or Cloudflare Pages)
+
+1) Set `NEXT_PUBLIC_API_BASE` to the Worker URL.
+2) Deploy via provider UI/CLI.
+
+Cloudflare Pages (+ Functions) is supported; this repo assumes the Worker orchestrator is separate for clearer scaling and quotas.
+
+## API Reference
+
+Public routes (Worker)
+
+- `GET /` → Health text
+- `GET /api/health` → KV/R2/D1 pings
+- `GET /api/quotas` → Minute/day counters per provider
+- `GET /api/metrics` → Provider status, success/failure rates, queue/semaphore stats (rate‑limited, cached)
+- `POST /api/transcribe/start` → Initialize job; returns `{ id, status }`
+- `POST /api/transcribe/:id/chunk` → Append/replace chunk `{ audioHash, text, index?, startTime?, endTime? }`
+- `GET /api/transcribe/:id/stream` → SSE stream of `status/raw/quick/enhanced/done`
+- `POST /api/correct/batch` → Batch correction (internal use); cache‑first
+- `POST /api/community/submit` → Submit community correction `{ audioHash, text, ... }`
+- `POST /api/community/upvote` → Upvote community entry `{ audioHash }`
+- `GET /api/export/:id.(txt|srt|vtt|json)` → Export transcript
+
+SSE payload examples
+
+```json
+{ "type":"status", "jobId":"...", "status":"transcribing" }
+{ "type":"raw", "chunkIndex":3, "text":"..." }
+{ "type":"quick", "chunkIndex":3, "text":"...", "provider":"router", "confidence":0.80 }
+{ "type":"enhanced", "chunkIndex":0, "text":"...", "provider":"router", "confidence":0.85 }
+{ "type":"done", "jobId":"..." }
+```
+
+Cache keys
+
+- `COMMUNITY_CACHE:{audioHash}` → `{ text, corrections, contributor, upvotes }`
+- `RESPONSE_CACHE:{sha256(audioHash|mode|sortedGlossary)}` → corrected text
+- `QUOTA_COUNTERS:{provider}:minute:{YYYYMMDDHHmm}` → `{ used, limit }`
+- `QUOTA_COUNTERS:{provider}:day:{YYYYMMDD}` → `{ used, limit, resetAt }`
+- `METRICS:success|failure:{provider}:day:{YYYYMMDD}` → counts
+- `JOB_STATE:{jobId}` → job snapshot (chunks, updatedAt)
 
 Contributions are welcome! Whether it's improving the code, suggesting features, or reporting bugs, your help is appreciated. Please read the `prd.md` and `prd.yaml` files to understand the project's vision and technical details before contributing.
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0. See the `LICENSE.md` file for details.
+This project is licensed under the MIT License. See the `LICENSE.md` file for details.
+le for details.

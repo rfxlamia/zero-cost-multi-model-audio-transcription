@@ -68,3 +68,13 @@ export function enqueueForCorrection(env: any, mode: CorrectionMode, text: strin
   })
 }
 
+export function getQueueStats() {
+  const out: { key: string; count: number }[] = []
+  let total = 0
+  queues.forEach((q, key) => {
+    const count = Array.isArray(q?.items) ? q.items.length : 0
+    total += count
+    out.push({ key, count })
+  })
+  return { totalItems: total, queues: out }
+}

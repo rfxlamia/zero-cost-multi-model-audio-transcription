@@ -1,6 +1,7 @@
 import { hfCorrectBatch } from '../providers/huggingface'
 import { groqCorrectBatch } from '../providers/groq'
 import { hasQuota, incQuota, preemptiveSwitch } from './quota'
+import { incProviderFailure, incProviderSuccess } from './metrics'
 import { optimizeBatch } from '../utils/text'
 import type { CorrectionMode, ProviderName } from '../types'
 
@@ -30,10 +31,12 @@ export async function correctTextsWithFallback(
         ? await groqCorrectBatch(env, prepped, opts)
         : await hfCorrectBatch(env, prepped, opts)
       await incQuota(env, p as any, texts.length)
+      await incProviderSuccess(env, p, texts.length)
       console.log('[router] using provider', p)
       return { provider: p, texts: out }
     } catch (e) {
       console.warn('[router] provider failed', p, (e as any)?.message || e)
+      await incProviderFailure(env, p, texts.length)
       // try next provider
       continue
     }

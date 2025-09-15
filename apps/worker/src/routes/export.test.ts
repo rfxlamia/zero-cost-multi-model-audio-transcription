@@ -1,0 +1,139 @@
+import { describe, it, expect } from 'vitest'
+import { exp } from './export'
+import app from '../index'
+import type { Env } from '../index'
+
+function createKV(initial: Record<string, any> = {}) {
+  const store = new Map<string, any>(Object.entries(initial))
+  return {
+    get: async (key: string, type?: 'json' | 'text' | 'arrayBuffer' | 'stream') => {
+      const v = store.get(key)
+      if (v == null) return null
+      if (type === 'json') return v
+      return typeof v === 'string' ? v : JSON.stringify(v)
+    },
+    put: async (key: string, value: string) => {
+      try {
+        store.set(key, JSON.parse(value))
+      } catch {
+        store.set(key, value)
+      }
+    },
+    delete: async (key: string) => {
+      store.delete(key)
+    },
+  } as unknown as KVNamespace
+}
+
+function makeEnv(overrides: Partial<Env> = {}, jobMap: Record<string, any> = {}): Env {
+  const nullKV = createKV()
+  return {
+    COMMUNITY_CACHE: nullKV,
+    RESPONSE_CACHE: nullKV,
+    QUOTA_COUNTERS: nullKV,
+    JOB_STATE: createKV(jobMap),
+    R2_BUCKET: {} as any,
+    DB: {} as any,
+    AI: {} as any,
+    GROQ_API_KEY: undefined,
+    HF_API_TOKEN: undefined,
+    ORIGIN_WHITELIST: 'http://localhost:3000',
+    LOG_LEVEL: 'info',
+    DISABLE_GROQ: undefined,
+    DISABLE_HF: undefined,
+    ...(overrides as any),
+  }
+}
+
+describe('export route', () => {
+  it('exports SRT with provided timestamps and final text', async () => {
+    const id = 'job-1'
+    const job = {
+      id,
+      chunks: [
+        { startTime: 0, endTime: 30, transcription: { raw: 'r0', quick: 'q0', enhanced: 'e0', final: 'e0' } },
+        { startTime: 30, endTime: 60, transcription: { raw: 'r1', quick: 'q1', enhanced: 'e1', final: 'e1' } },
+      ],
+    }
+    const env = makeEnv({}, { [`JOB_STATE:${id}`]: job })
+    const res = await exp.request(`/api/export/${id}.srt`, {}, env)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/x-subrip; charset=utf-8')
+    expect(res.headers.get('content-disposition')).toContain(`filename="${id}.srt"`)
+    const body = await res.text()
+    expect(body).toContain('1\n00:00:00,000 --> 00:00:30,000\n')
+    expect(body).toContain('e0')
+    expect(body).toContain('2\n00:00:30,000 --> 00:01:00,000\n')
+    expect(body).toContain('e1')
+  })
+
+  it('exports VTT with header and proper timestamps', async () => {
+    const id = 'job-2'
+    const job = {
+      id,
+      chunks: [
+        { startTime: 0, endTime: 30, transcription: { final: 'hello' } },
+        { startTime: 30, endTime: 60, transcription: { final: 'world' } },
+      ],
+    }
+    const env = makeEnv({}, { [`JOB_STATE:${id}`]: job })
+    const res = await exp.request(`/api/export/${id}.vtt`, {}, env)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('text/vtt; charset=utf-8')
+    expect(res.headers.get('content-disposition')).toContain(`filename="${id}.vtt"`)
+    const body = await res.text()
+    expect(body.startsWith('WEBVTT')).toBe(true)
+    expect(body).toContain('00:00:00.000 --> 00:00:30.000')
+    expect(body).toContain('hello')
+    expect(body).toContain('00:00:30.000 --> 00:01:00.000')
+    expect(body).toContain('world')
+  })
+
+  it('falls back to 30s segments when no timestamps present', async () => {
+    const id = 'job-3'
+    const job = {
+      id,
+      chunks: [
+        { transcription: { final: 'A' } },
+        { transcription: { final: 'B' } },
+      ],
+    }
+    const env = makeEnv({}, { [`JOB_STATE:${id}`]: job })
+    const res = await exp.request(`/api/export/${id}.srt`, {}, env)
+    expect(res.status).toBe(200)
+    const body = await res.text()
+    expect(body).toContain('00:00:00,000 --> 00:00:30,000')
+    expect(body).toContain('A')
+    expect(body).toContain('00:00:30,000 --> 00:01:00,000')
+    expect(body).toContain('B')
+  })
+
+  it('returns 404 for missing job', async () => {
+    const env = makeEnv()
+    const res = await exp.request(`/api/export/unknown.txt`, {}, env)
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 400 for invalid extension', async () => {
+    const env = makeEnv()
+    const res = await exp.request(`/api/export/whatever.pdf`, {}, env)
+    expect(res.status).toBe(400)
+    const text = await res.text()
+    expect(text).toContain('Unsupported format')
+  })
+
+  it('returns 400 when ext is absent (trailing dot)', async () => {
+    const env = makeEnv()
+    const res = await exp.request(`/api/export/job123.`, {}, env)
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('regression - root route', () => {
+  it('serves orchestrator root text', async () => {
+    const res = await app.request('/')
+    expect(res.status).toBe(200)
+    const txt = await res.text()
+    expect(txt).toContain('TranscriptorAI Worker orchestrator')
+  })
+})

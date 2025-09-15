@@ -20,4 +20,4 @@ export class Semaphore {
 }
 
 export const providerSemaphore = new Semaphore(5)
-
+export const kvSemaphore = new Semaphore(5)
