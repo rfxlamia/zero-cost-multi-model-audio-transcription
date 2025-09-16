@@ -44,6 +44,7 @@ export default [
       ...pluginReactHooks.configs.recommended.rules,
       ...pluginNext.configs.recommended.rules,
       ...pluginNext.configs['core-web-vitals'].rules,
+      '@next/next/no-html-link-for-pages': 'off',
       'prettier/prettier': 'error',
       '@typescript-eslint/no-unused-expressions': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
@@ -59,6 +60,9 @@ export default [
     settings: {
       react: {
         version: 'detect',
+      },
+      next: {
+        rootDir: ['apps/web'],
       },
     },
   },
