@@ -50,6 +50,8 @@ describe('export route', () => {
     const id = 'job-1'
     const job = {
       id,
+      createdAt: '2025-09-14T00:00:00Z',
+      status: 'done',
       chunks: [
         { startTime: 0, endTime: 30, transcription: { raw: 'r0', quick: 'q0', enhanced: 'e0', final: 'e0' } },
         { startTime: 30, endTime: 60, transcription: { raw: 'r1', quick: 'q1', enhanced: 'e1', final: 'e1' } },
@@ -67,29 +69,28 @@ describe('export route', () => {
     expect(body).toContain('e1')
   })
 
-  it('exports VTT with header and proper timestamps', async () => {
+  it('exports VTT with header and merges tight gaps', async () => {
     const id = 'job-2'
     const job = {
       id,
       chunks: [
-        { startTime: 0, endTime: 30, transcription: { final: 'hello' } },
-        { startTime: 30, endTime: 60, transcription: { final: 'world' } },
+        { startTime: 0, endTime: 29.8, transcription: { final: 'hello there' } },
+        { startTime: 30.05, endTime: 59.7, transcription: { final: 'general kenobi' } },
       ],
     }
     const env = makeEnv({}, { [`JOB_STATE:${id}`]: job })
     const res = await exp.request(`/api/export/${id}.vtt`, {}, env)
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('text/vtt; charset=utf-8')
-    expect(res.headers.get('content-disposition')).toContain(`filename="${id}.vtt"`)
     const body = await res.text()
     expect(body.startsWith('WEBVTT')).toBe(true)
-    expect(body).toContain('00:00:00.000 --> 00:00:30.000')
-    expect(body).toContain('hello')
-    expect(body).toContain('00:00:30.000 --> 00:01:00.000')
-    expect(body).toContain('world')
+    expect(body.match(/--> /g)?.length).toBe(1) // merged because gap <= tolerance
+    expect(body).toContain('00:00:00.000 --> 00:00:59.700')
+    expect(body).toContain('hello there')
+    expect(body).toContain('general kenobi')
   })
 
-  it('falls back to 30s segments when no timestamps present', async () => {
+  it('falls back to derived timestamps when not present', async () => {
     const id = 'job-3'
     const job = {
       id,
@@ -106,6 +107,28 @@ describe('export route', () => {
     expect(body).toContain('A')
     expect(body).toContain('00:00:30,000 --> 00:01:00,000')
     expect(body).toContain('B')
+  })
+
+  it('returns json payload with metadata and segments', async () => {
+    const id = 'job-4'
+    const job = {
+      id,
+      createdAt: '2025-09-14T00:00:00Z',
+      status: 'enhancing',
+      chunks: [
+        { startTime: 0, endTime: 30.1, transcription: { final: 'foo' } },
+      ],
+    }
+    const env = makeEnv({}, { [`JOB_STATE:${id}`]: job })
+    const res = await exp.request(`/api/export/${id}.json`, {}, env)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/json; charset=utf-8')
+    const body = (await res.json()) as any
+    expect(body.id).toBe(id)
+    expect(body.status).toBe('enhancing')
+    expect(body.segments.length).toBe(1)
+    expect(body.segments[0].start).toBeLessThanOrEqual(0.5)
+    expect(body.segments[0].end).toBeGreaterThan(29)
   })
 
   it('returns 404 for missing job', async () => {

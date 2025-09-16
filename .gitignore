@@ -14,3 +14,7 @@ pnpm-debug.log*
 
 # Ignore Cloudflare dev vars
 .dev.vars
+
+critic.md
+prompt.md
+repo.txt

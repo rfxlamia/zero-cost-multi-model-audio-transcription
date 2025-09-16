@@ -147,6 +147,20 @@ pnpm dev
 *   Aplikasi web akan tersedia di `http://localhost:3000`
 *   API Worker akan tersedia di `http://127.0.0.1:8787`
 
+## Perkembangan Terbaru
+
+### Day 9–10 (Sesi Terkini)
+
+* **Pipeline ekspor diperketat** – Menambahkan utilitas bersama dengan toleransi waktu ±0,5 detik dan penggabungan jeda, merombak rute ekspor worker, serta memperluas pengujian untuk output TXT/SRT/VTT/JSON.
+* **Fallback Transformers.js** – Membuat hook klien untuk memuat `@xenova/transformers@^2.17.2` secara malas, memeriksa memori perangkat dan izin dari worker, lalu memasukkan hasil ASR lokal ke tampilan transkrip dengan tombol preload dan status yang jelas.
+* **Pengujian & debugging** – Menjalankan `pnpm exec vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1 --reporter=verbose` agar stabil di sandbox; menyesuaikan versi dependensi dengan rilis terbaru Transformers.js dan mendokumentasikan instalasi manual ketika DNS sandbox memblokir npm.
+* **Hambatan tersisa** – Tidak ada hambatan fungsional; telemetri penggunaan fallback masih lokal dan bisa ditingkatkan di tahap berikutnya.
+
+### Pekerjaan Lanjutan (Target Day 11–12)
+
+* **Day 11 – Ketahanan fallback & kuota** (`prd.md`, `prd.yaml`, `step.md`): uji stres router penyedia, simulasi kehabisan kuota, pastikan switch pre-emptive, dan dokumentasikan perilaku pemulihan.
+* **Day 12 – Performa & caching**: profil latensi API, sesuaikan jeda flush batching dan kompresi prompt, tingkatkan rasio hit KV, optimalkan bundel frontend, dan munculkan metrik di dashboard.
+
 ## Variabel Lingkungan & Bindings
 
 Worker (Cloudflare)
@@ -214,10 +228,10 @@ Tujuan kami adalah untuk terus meningkatkan akurasi, kecepatan, dan rangkaian fi
 - [x] Integrasi SSE Frontend & Penampil Transkrip
 
 ### Minggu 3-4 (Peningkatan)
-- [ ] Fallback ASR Berbasis Browser (Transformers.js)
+- [x] Fallback ASR Berbasis Browser (Transformers.js)
 - [ ] Integrasi Together AI & Cohere
 - [ ] Strategi Caching Tingkat Lanjut
-- [ ] Format Ekspor Tambahan (DOCX, VTT)
+- [x] Format Ekspor Tambahan (TXT/SRT/VTT/JSON)
 - [ ] Sistem Glosarium untuk istilah spesifik domain
 
 ### Masa Depan
@@ -225,6 +239,18 @@ Tujuan kami adalah untuk terus meningkatkan akurasi, kecepatan, dan rangkaian fi
 - [ ] Berbagi Koreksi P2P (WebRTC)
 - [ ] API untuk Developer
 - [ ] Dokumentasi Self-hosting
+
+### Ringkasan Terbaru (Day 9–10)
+
+* **Pipeline ekspor diperketat** – Menambahkan utilitas bersama dengan toleransi waktu ±0,5 detik dan penggabungan jeda, merombak rute ekspor worker, serta memperluas pengujian untuk output TXT/SRT/VTT/JSON.
+* **Fallback Transformers.js** – Membuat hook klien untuk memuat `@xenova/transformers@^2.17.2` secara malas, memeriksa memori perangkat dan izin dari worker, lalu memasukkan hasil ASR lokal ke tampilan transkrip dengan tombol preload dan status yang jelas.
+* **Pengujian & debugging** – Menjalankan `pnpm exec vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1 --reporter=verbose` agar stabil di sandbox; menyesuaikan versi dependensi dengan rilis terbaru Transformers.js dan mendokumentasikan instalasi manual ketika DNS sandbox memblokir npm.
+* **Hambatan tersisa** – Tidak ada hambatan fungsional; telemetri penggunaan fallback masih lokal dan bisa ditingkatkan di tahap berikutnya.
+
+### Target Berikutnya (Day 11–12)
+
+* **Day 11 – Ketahanan fallback & kuota** (`prd.md`, `prd.yaml`, `step.md`): uji stres router penyedia, simulasi kehabisan kuota, pastikan switch pre-emptive, dan dokumentasikan perilaku pemulihan.
+* **Day 12 – Performa & caching**: profil latensi API, sesuaikan jeda flush batching dan kompresi prompt, tingkatkan rasio hit KV, optimalkan bundel frontend, dan munculkan metrik di dashboard.
 
 ## Berkontribusi
 ## Panduan Deployment

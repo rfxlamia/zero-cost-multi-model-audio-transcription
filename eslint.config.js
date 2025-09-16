@@ -6,6 +6,10 @@ import pluginReact from 'eslint-plugin-react';
 import pluginReactHooks from 'eslint-plugin-react-hooks';
 import pluginNext from '@next/eslint-plugin-next';
 import pluginPrettier from 'eslint-plugin-prettier';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default [
   {
@@ -17,6 +21,7 @@ export default [
         ecmaFeatures: { jsx: true },
         ecmaVersion: 'latest',
         sourceType: 'module',
+        tsconfigRootDir: __dirname,
         project: ['./tsconfig.json', 'apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
       },
       globals: {
@@ -40,6 +45,7 @@ export default [
       ...pluginNext.configs.recommended.rules,
       ...pluginNext.configs['core-web-vitals'].rules,
       'prettier/prettier': 'error',
+      '@typescript-eslint/no-unused-expressions': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',

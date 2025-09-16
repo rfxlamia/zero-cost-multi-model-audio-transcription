@@ -214,10 +214,10 @@ Our goal is to continuously improve the accuracy, speed, and feature set of Tran
 - [x] Frontend SSE Integration & Transcript Viewer
 
 ### Week 3-4 (Enhancements)
-- [ ] Browser-based ASR Fallback (Transformers.js)
+- [x] Browser-based ASR Fallback (Transformers.js)
 - [ ] Integration of Together AI & Cohere
 - [ ] Advanced Caching Strategies
-- [ ] Additional Export Formats (DOCX, VTT)
+- [x] Additional Export Formats (TXT/SRT/VTT/JSON)
 - [ ] Glossary System for domain-specific terms
 
 ### Future
@@ -225,6 +225,18 @@ Our goal is to continuously improve the accuracy, speed, and feature set of Tran
 - [ ] P2P Correction Sharing (WebRTC)
 - [ ] Developer API
 - [ ] Self-hosting Documentation
+
+### Latest Session (Day 9–10 Summary)
+
+* **Export pipeline hardened** – Added shared helpers with ±0.5 s timestamp tolerance and gap merging, refactored the worker export route, and expanded tests for TXT/SRT/VTT/JSON outputs.
+* **Transformers.js fallback** – Created a client hook to lazily load `@xenova/transformers@^2.17.2`, gate by device memory and server availability, and feed local ASR results into the transcript UI with preload controls and clear status messaging.
+* **Testing & debugging** – Executed `pnpm exec vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1 --reporter=verbose` for deterministic sandbox runs; resolved dependency issues by aligning to the latest published Transformers.js release and documenting manual installs when DNS blocks npm.
+* **Current blockers** – None functionally; optional telemetry for fallback usage remains a future enhancement.
+
+### Upcoming (Day 11–12 Targets)
+
+* **Day 11 – Cascade & quota resilience** (`prd.md`, `prd.yaml`, `step.md`): stress provider fallback, simulate quota exhaustion, ensure pre-emptive switches, and capture recovery behaviour.
+* **Day 12 – Performance & caching**: profile API latency, tune batching flush timers and prompt compression, improve KV hit ratios, optimize frontend bundles, and surface metrics in the dashboard.
 
 ## Contributing
 ## Deployment Guide

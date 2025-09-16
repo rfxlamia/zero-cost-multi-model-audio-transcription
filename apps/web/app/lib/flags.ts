@@ -1,6 +1,6 @@
 export function transformersEnabled(): boolean {
   const v = process.env.NEXT_PUBLIC_ENABLE_TRANSFORMERS
-  if (v == null) return false
-  return String(v).toLowerCase() === 'true' || String(v) === '1'
+  if (v === undefined) return false
+  const s = v.toLowerCase()
+  return s === 'true' || v === '1'
 }
-

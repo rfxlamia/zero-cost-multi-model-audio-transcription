@@ -9,10 +9,12 @@
     "deploy": "wrangler deploy",
     "test": "vitest",
     "lint": "eslint --ext .ts src/",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "test:stable": "vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1"
   },
   "dependencies": {
-    "hono": "^4.9.7"
+    "hono": "^4.9.7",
+    "@transcriptorai/shared": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241018.0",

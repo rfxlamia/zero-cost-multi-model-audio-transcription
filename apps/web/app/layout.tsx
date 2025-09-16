@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import type { ReactNode, ReactElement } from 'react'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -6,16 +7,10 @@ export const metadata: Metadata = {
   description: 'Zero-cost Indonesian speech transcription with AI correction',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: ReactNode }): ReactElement {
   return (
     <html lang="id">
-      <body className="antialiased bg-white dark:bg-gray-900">
-        {children}
-      </body>
+      <body className="bg-white antialiased dark:bg-gray-900">{children}</body>
     </html>
   )
 }
