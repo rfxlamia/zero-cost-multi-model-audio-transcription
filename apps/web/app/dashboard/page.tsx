@@ -37,9 +37,9 @@ export default function DashboardPage(): ReactElement {
   const fetchAll = useCallback(async (): Promise<void> => {
     setLoading(true)
     try {
-      const [q, m] = await Promise.all<[QuotasResponse, Metrics]>([
-        fetch(`${apiBase}/api/quotas`).then((r) => r.json() as Promise<QuotasResponse>),
-        fetch(`${apiBase}/api/metrics`).then((r) => r.json() as Promise<Metrics>),
+      const [q, m] = await Promise.all([
+        fetch(`${apiBase}/api/quotas`).then(async (r) => (await r.json()) as QuotasResponse),
+        fetch(`${apiBase}/api/metrics`).then(async (r) => (await r.json()) as Metrics),
       ])
       setQuotas(q.quotas)
       setMetrics(m)

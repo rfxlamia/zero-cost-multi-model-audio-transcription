@@ -1,3 +1,5 @@
+/// <reference types="@cloudflare/workers-types" />
+
 import { Hono } from 'hono'
 import { health } from './routes/health'
 import { correct } from './routes/correct'
@@ -17,7 +19,7 @@ export type Env = {
   JOB_STATE: KVNamespace
   R2_BUCKET: R2Bucket
   DB: D1Database
-  AI: any
+  AI: Ai // Cloudflare AI binding type
   GROQ_API_KEY?: string
   HF_API_TOKEN?: string
   ORIGIN_WHITELIST?: string

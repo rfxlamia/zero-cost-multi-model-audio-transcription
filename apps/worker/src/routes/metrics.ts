@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { Env } from '../index'
-import { getProviderDailyMetrics } from '../services/metrics'
+import { getProviderDailyMetrics, getProviderLatency } from '../services/metrics'
 import { preemptiveSwitch } from '../services/quota'
 import { providerSemaphore } from '../utils/semaphore'
 import { kvSemaphore } from '../utils/semaphore'
@@ -47,13 +47,21 @@ metrics.get('/api/metrics', async (c) => {
   const stats: Record<string, any> = {}
   for (const p of providers) {
     const daily = await getProviderDailyMetrics({ QUOTA_COUNTERS: c.env.QUOTA_COUNTERS }, p)
-    const nearLimit = await preemptiveSwitch({ QUOTA_COUNTERS: c.env.QUOTA_COUNTERS } as any, p as any)
+    const latency = await getProviderLatency({ QUOTA_COUNTERS: c.env.QUOTA_COUNTERS }, p)
+    const nearLimit = await preemptiveSwitch(
+      { QUOTA_COUNTERS: c.env.QUOTA_COUNTERS } as any,
+      p as any
+    )
     const enabled =
-      (p === 'groq' && !!c.env.GROQ_API_KEY && !(c.env.DISABLE_GROQ === '1' || c.env.DISABLE_GROQ === true)) ||
-      (p === 'huggingface' && !!c.env.HF_API_TOKEN && !(c.env.DISABLE_HF === '1' || c.env.DISABLE_HF === true)) ||
+      (p === 'groq' &&
+        !!c.env.GROQ_API_KEY &&
+        !(c.env.DISABLE_GROQ === '1' || c.env.DISABLE_GROQ === true)) ||
+      (p === 'huggingface' &&
+        !!c.env.HF_API_TOKEN &&
+        !(c.env.DISABLE_HF === '1' || c.env.DISABLE_HF === true)) ||
       (p === 'together' && !!(c.env as any).TOGETHER_API_KEY) ||
       (p === 'cohere' && !!(c.env as any).COHERE_API_KEY)
-    stats[p] = { enabled, nearLimit, daily }
+    stats[p] = { enabled, nearLimit, daily, latency }
   }
 
   const semaphores = {

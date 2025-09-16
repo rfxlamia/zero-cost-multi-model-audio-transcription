@@ -25,4 +25,3 @@ export function optimizeText(input: string, mode: CorrectionMode): string {
 export function optimizeBatch(texts: string[], mode: CorrectionMode): string[] {
   return texts.map((t) => optimizeText(t, mode))
 }
-

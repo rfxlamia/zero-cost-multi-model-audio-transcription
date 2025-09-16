@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../index'
 
-type KV = KVNamespace
+// type KV = KVNamespace // Type alias for KVNamespace
 
 const dayKey = () => {
   const d = new Date()
@@ -11,6 +11,8 @@ const dayKey = () => {
   return `${y}${m}${dd}`
 }
 
+// Utility function for quota keys (kept for potential future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const quotaKey = (provider: string, day: string) => `QUOTA_COUNTERS:${provider}:day:${day}`
 
 export const quotas = new Hono<{ Bindings: Env }>()
@@ -35,7 +37,8 @@ quotas.get('/api/quotas', async (c) => {
     const minRaw = await c.env.QUOTA_COUNTERS.get(`QUOTA_COUNTERS:${p}:minute:${minute}`, 'json')
     out[p] = {
       day: dayRaw && typeof dayRaw === 'object' ? dayRaw : { used: 0, limit: null, resetAt: null },
-      minute: minRaw && typeof minRaw === 'object' ? minRaw : { used: 0, limit: null, resetAt: null },
+      minute:
+        minRaw && typeof minRaw === 'object' ? minRaw : { used: 0, limit: null, resetAt: null },
     }
   }
   return c.json({ day, minute, quotas: out })

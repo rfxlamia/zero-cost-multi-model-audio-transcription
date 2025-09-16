@@ -290,5 +290,3 @@ export function useTransformersFallback(options: Options): UseTransformersFallba
     isLoading: state.status === 'loading',
   }
 }
-
-export type { UseTransformersFallbackReturn }

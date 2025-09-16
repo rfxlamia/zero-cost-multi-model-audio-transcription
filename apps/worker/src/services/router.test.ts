@@ -7,7 +7,7 @@ vi.mock('../providers/groq', () => ({
 }))
 
 vi.mock('../providers/huggingface', () => ({
-  hfCorrectBatch: vi.fn(async (_env: any, texts: string[]) => texts.map((t) => `HF:${t}`)),
+  huggingfaceCorrectBatch: vi.fn(async (_env: any, texts: string[]) => texts.map((t) => `HF:${t}`)),
 }))
 
 import { correctTextsWithFallback } from './router'
@@ -17,6 +17,7 @@ function createKV(initial: Record<string, any> = {}) {
   return {
     get: async (key: string, type?: 'json' | 'text') => {
       const v = store.get(key)
+      // eslint-disable-next-line eqeqeq
       if (v == null) return null
       if (type === 'json') return v
       return typeof v === 'string' ? v : JSON.stringify(v)
@@ -85,5 +86,20 @@ describe('router fallback', () => {
     const { provider } = await correctTextsWithFallback(env, ['z'], 'quick')
     expect(provider).toBe('huggingface')
   })
-})
 
+  it('returns none when quotas exhausted across providers', async () => {
+    const d = dayKey()
+    const kv = createKV({
+      [`QUOTA_COUNTERS:groq:day:${d}`]: { used: 14400, limit: 14400 },
+      [`QUOTA_COUNTERS:huggingface:day:${d}`]: { used: 1000, limit: 1000 },
+    })
+    const env: any = {
+      QUOTA_COUNTERS: kv,
+      GROQ_API_KEY: 'x',
+      HF_API_TOKEN: 'y',
+    }
+    const res = await correctTextsWithFallback(env, ['foo', 'bar'], 'quick')
+    expect(res.provider).toBe('none')
+    expect(res.texts).toEqual(['foo', 'bar'])
+  })
+})

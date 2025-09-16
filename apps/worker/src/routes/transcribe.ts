@@ -36,7 +36,8 @@ transcribe.post('/api/transcribe/:id/chunk', async (c) => {
   job.status = 'transcribing'
   job.updatedAt = new Date().toISOString()
   job.chunks = Array.isArray(job.chunks) ? job.chunks : []
-  const nextIndex = typeof body.index === 'number' && Number.isFinite(body.index) ? body.index : job.chunks.length
+  const nextIndex =
+    typeof body.index === 'number' && Number.isFinite(body.index) ? body.index : job.chunks.length
   const start = typeof body.startTime === 'number' ? body.startTime : undefined
   const end = typeof body.endTime === 'number' ? body.endTime : undefined
   const chunk = {

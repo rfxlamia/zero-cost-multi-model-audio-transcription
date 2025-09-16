@@ -1,6 +1,8 @@
 import { buildIndonesianCorrectionPrompt, wrapBatchPrompt } from '../prompts'
 import type { ProviderCallOptions } from '../types'
 import { providerSemaphore } from '../utils/semaphore'
+// import type { GroqChatCompletionResponse } from '../types/api-responses' // Type used internally by isGroqResponse
+import { isGroqResponse } from '../types/api-responses'
 
 const QUICK_MODEL = 'llama-3.1-8b-instant'
 const ENHANCED_MODEL = 'llama-3.1-70b-versatile'
@@ -9,7 +11,7 @@ export async function groqCorrectBatch(
   env: { GROQ_API_KEY?: string },
   texts: string[],
   opts: ProviderCallOptions
-) {
+): Promise<string[]> {
   if (!env.GROQ_API_KEY) throw new Error('GROQ_API_KEY not set')
   const model = opts.mode === 'quick' ? QUICK_MODEL : ENHANCED_MODEL
   const system = buildIndonesianCorrectionPrompt(opts.glossary)
@@ -34,8 +36,13 @@ export async function groqCorrectBatch(
       }),
     })
     if (!res.ok) throw new Error(`Groq error ${res.status}`)
-    const data: any = await res.json()
-    const content: string = data.choices?.[0]?.message?.content ?? ''
+    const data = await res.json()
+
+    if (!isGroqResponse(data)) {
+      throw new Error('Invalid response format from Groq API')
+    }
+
+    const content = data.choices?.[0]?.message?.content ?? ''
     // Expect N lines corresponding to batch
     const lines = content
       .split('\n')
@@ -46,4 +53,3 @@ export async function groqCorrectBatch(
     providerSemaphore.release()
   }
 }
-

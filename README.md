@@ -233,6 +233,13 @@ Our goal is to continuously improve the accuracy, speed, and feature set of Tran
 * **Testing & debugging** – Executed `pnpm exec vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1 --reporter=verbose` for deterministic sandbox runs; resolved dependency issues by aligning to the latest published Transformers.js release and documenting manual installs when DNS blocks npm.
 * **Current blockers** – None functionally; optional telemetry for fallback usage remains a future enhancement.
 
+### Latest Session (Day 11–12 Summary)
+
+* **Provider cascade safeguards** – Added regression tests covering quota exhaustion and pre-emptive switching so the router consistently falls back when Groq/HF limits are reached.
+* **Batching optimizations** – Mode-aware flush timers (quick vs enhanced), background flush scheduling, and latency telemetry recorded per provider to Cloudflare KV.
+* **Metrics enrichment** – `/api/metrics` now exposes latency aggregates alongside quota and success data, enabling the dashboard to trend provider performance.
+* **Current blockers** – Repo still carries legacy ESLint/TypeScript violations (implicit `any`, missing return types) that need a dedicated lint cleanup pass.
+
 ### Upcoming (Day 11–12 Targets)
 
 * **Day 11 – Cascade & quota resilience** (`prd.md`, `prd.yaml`, `step.md`): stress provider fallback, simulate quota exhaustion, ensure pre-emptive switches, and capture recovery behaviour.

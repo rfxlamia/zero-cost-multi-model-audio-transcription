@@ -6,6 +6,7 @@ function createKV(initial: Record<string, any> = {}) {
   return {
     get: async (key: string, type?: 'json' | 'text') => {
       const v = store.get(key)
+      // eslint-disable-next-line eqeqeq
       if (v == null) return null
       if (type === 'json') return v
       return typeof v === 'string' ? v : JSON.stringify(v)
@@ -68,4 +69,3 @@ describe('quota counters', () => {
     expect((minDoc as any)?.used).toBe(30)
   })
 })
-

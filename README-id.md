@@ -247,6 +247,13 @@ Tujuan kami adalah untuk terus meningkatkan akurasi, kecepatan, dan rangkaian fi
 * **Pengujian & debugging** – Menjalankan `pnpm exec vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1 --reporter=verbose` agar stabil di sandbox; menyesuaikan versi dependensi dengan rilis terbaru Transformers.js dan mendokumentasikan instalasi manual ketika DNS sandbox memblokir npm.
 * **Hambatan tersisa** – Tidak ada hambatan fungsional; telemetri penggunaan fallback masih lokal dan bisa ditingkatkan di tahap berikutnya.
 
+### Ringkasan Terbaru (Day 11–12)
+
+* **Ketahanan fallback & kuota** – Menambahkan uji regresi yang mensimulasikan kehabisan kuota Groq/HF serta memastikan switch pre-emptive di router berjalan mulus.
+* **Optimasi batching** – Interval flush berbeda untuk mode quick/enhanced, penjadwalan flush ulang, serta pencatatan latensi setiap provider ke Cloudflare KV.
+* **Penyayaan metrik** – Endpoint `/api/metrics` kini menampilkan agregasi latensi selain data kuota/sukses sehingga dashboard dapat memantau performa provider.
+* **Hambatan tersisa** – Masih terdapat warisan pelanggaran ESLint/TypeScript (implicit `any`, return type hilang) yang memerlukan sesi cleanup terpisah.
+
 ### Target Berikutnya (Day 11–12)
 
 * **Day 11 – Ketahanan fallback & kuota** (`prd.md`, `prd.yaml`, `step.md`): uji stres router penyedia, simulasi kehabisan kuota, pastikan switch pre-emptive, dan dokumentasikan perilaku pemulihan.

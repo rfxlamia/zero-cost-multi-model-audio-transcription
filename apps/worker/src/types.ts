@@ -26,4 +26,3 @@ export type ProviderCallOptions = {
   mode: CorrectionMode
   glossary?: string[]
 }
-

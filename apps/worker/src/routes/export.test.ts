@@ -8,6 +8,7 @@ function createKV(initial: Record<string, any> = {}) {
   return {
     get: async (key: string, type?: 'json' | 'text' | 'arrayBuffer' | 'stream') => {
       const v = store.get(key)
+      // eslint-disable-next-line eqeqeq
       if (v == null) return null
       if (type === 'json') return v
       return typeof v === 'string' ? v : JSON.stringify(v)
@@ -53,8 +54,16 @@ describe('export route', () => {
       createdAt: '2025-09-14T00:00:00Z',
       status: 'done',
       chunks: [
-        { startTime: 0, endTime: 30, transcription: { raw: 'r0', quick: 'q0', enhanced: 'e0', final: 'e0' } },
-        { startTime: 30, endTime: 60, transcription: { raw: 'r1', quick: 'q1', enhanced: 'e1', final: 'e1' } },
+        {
+          startTime: 0,
+          endTime: 30,
+          transcription: { raw: 'r0', quick: 'q0', enhanced: 'e0', final: 'e0' },
+        },
+        {
+          startTime: 30,
+          endTime: 60,
+          transcription: { raw: 'r1', quick: 'q1', enhanced: 'e1', final: 'e1' },
+        },
       ],
     }
     const env = makeEnv({}, { [`JOB_STATE:${id}`]: job })
@@ -94,10 +103,7 @@ describe('export route', () => {
     const id = 'job-3'
     const job = {
       id,
-      chunks: [
-        { transcription: { final: 'A' } },
-        { transcription: { final: 'B' } },
-      ],
+      chunks: [{ transcription: { final: 'A' } }, { transcription: { final: 'B' } }],
     }
     const env = makeEnv({}, { [`JOB_STATE:${id}`]: job })
     const res = await exp.request(`/api/export/${id}.srt`, {}, env)
@@ -115,9 +121,7 @@ describe('export route', () => {
       id,
       createdAt: '2025-09-14T00:00:00Z',
       status: 'enhancing',
-      chunks: [
-        { startTime: 0, endTime: 30.1, transcription: { final: 'foo' } },
-      ],
+      chunks: [{ startTime: 0, endTime: 30.1, transcription: { final: 'foo' } }],
     }
     const env = makeEnv({}, { [`JOB_STATE:${id}`]: job })
     const res = await exp.request(`/api/export/${id}.json`, {}, env)

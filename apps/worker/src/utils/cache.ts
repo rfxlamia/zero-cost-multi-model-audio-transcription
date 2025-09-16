@@ -12,7 +12,14 @@ export const kvCommunityKey = (audioHash: string) => `COMMUNITY_CACHE:${audioHas
 export const kvResponseKey = (signature: string) => `RESPONSE_CACHE:${signature}`
 
 export async function buildSignature(audioHash: string, mode: CorrectionMode, glossary?: string[]) {
-  const g = (glossary && glossary.length ? [...glossary].map((s) => s.trim()).filter(Boolean).sort().join('|') : '')
+  const g =
+    glossary && glossary.length
+      ? [...glossary]
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .sort()
+          .join('|')
+      : ''
   const base = `${audioHash}|${mode}|${g}`
   return sha256Hex(base)
 }

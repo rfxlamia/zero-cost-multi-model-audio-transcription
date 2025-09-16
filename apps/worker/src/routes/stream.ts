@@ -22,7 +22,9 @@ stream.get('/api/transcribe/:id/stream', async (c) => {
 
   const stream = new ReadableStream<Uint8Array>({
     start: async (controller) => {
-      const send = (type: string, data: any) => controller.enqueue(encoder.encode(toEvent(type, data)))
+      const send = (type: string, data: any) => {
+        controller.enqueue(encoder.encode(toEvent(type, data)))
+      }
       try {
         send('status', { jobId: id, status: 'transcribing' })
         const key = `JOB_STATE:${id}`
@@ -38,7 +40,14 @@ stream.get('/api/transcribe/:id/stream', async (c) => {
         for (let i = 0; i < job.chunks.length; i++) {
           const ch = job.chunks[i]
           const rawText = ch?.transcription?.raw ?? ch?.raw
-          if (rawText) send('raw', { chunkIndex: i, text: String(rawText), provider: 'asr', confidence: 0.7, tsRange: null })
+          if (rawText)
+            send('raw', {
+              chunkIndex: i,
+              text: String(rawText),
+              provider: 'asr',
+              confidence: 0.7,
+              tsRange: null,
+            })
           rawDone++
           send('progress', { stage: 'raw', completed: rawDone, total })
         }
@@ -65,7 +74,9 @@ stream.get('/api/transcribe/:id/stream', async (c) => {
                 state.chunks[i].transcription.quick = q
                 state.chunks[i].transcription.final = q
                 state.updatedAt = new Date().toISOString()
-                await c.env.JOB_STATE.put(key, JSON.stringify(state), { expirationTtl: 7 * 24 * 60 * 60 })
+                await c.env.JOB_STATE.put(key, JSON.stringify(state), {
+                  expirationTtl: 7 * 24 * 60 * 60,
+                })
               } finally {
                 kvSemaphore.release()
               }
@@ -103,7 +114,9 @@ stream.get('/api/transcribe/:id/stream', async (c) => {
                 state.chunks[i].transcription.enhanced = eText
                 state.chunks[i].transcription.final = eText
                 state.updatedAt = new Date().toISOString()
-                await c.env.JOB_STATE.put(key, JSON.stringify(state), { expirationTtl: 7 * 24 * 60 * 60 })
+                await c.env.JOB_STATE.put(key, JSON.stringify(state), {
+                  expirationTtl: 7 * 24 * 60 * 60,
+                })
               } finally {
                 kvSemaphore.release()
               }

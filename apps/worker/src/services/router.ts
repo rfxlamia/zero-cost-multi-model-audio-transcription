@@ -1,4 +1,4 @@
-import { hfCorrectBatch } from '../providers/huggingface'
+import { huggingfaceCorrectBatch } from '../providers/huggingface'
 import { groqCorrectBatch } from '../providers/groq'
 import { hasQuota, incQuota, preemptiveSwitch } from './quota'
 import { incProviderFailure, incProviderSuccess } from './metrics'
@@ -27,9 +27,10 @@ export async function correctTextsWithFallback(
     try {
       const prepped = optimizeBatch(texts, mode)
       console.log('[router] trying provider', p, { count: prepped.length, mode })
-      const out = p === 'groq'
-        ? await groqCorrectBatch(env, prepped, opts)
-        : await hfCorrectBatch(env, prepped, opts)
+      const out =
+        p === 'groq'
+          ? await groqCorrectBatch(env, prepped, opts)
+          : await huggingfaceCorrectBatch(env, prepped, opts)
       await incQuota(env, p as any, texts.length)
       await incProviderSuccess(env, p, texts.length)
       console.log('[router] using provider', p)

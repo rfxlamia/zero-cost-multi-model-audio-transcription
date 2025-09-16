@@ -9,4 +9,3 @@ transformers.get('/api/transformers/fallback', async (c) => {
   if (disabled) return c.json({ allowed: false, reason: 'Browser ASR disabled' }, 503)
   return c.json({ allowed: true })
 })
-
