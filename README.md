@@ -17,16 +17,16 @@ This project is built for content creators, journalists, students, and researche
 
 ## Key Features
 
-*   **Truly Zero-Cost:** Intelligently routes requests across multiple free-tier API providers (Groq, HuggingFace, etc.) to avoid costs for typical usage.
-*   **Progressive Correction:** Get an instant raw transcript, followed by a quick AI correction, and finally an enhanced, high-accuracy version within seconds.
-*   **Multi-Provider Fallback:** A resilient backend that automatically switches between LLM providers to ensure high availability and optimal speed.
-*   **Community Cache:** Popular audio transcriptions are cached and shared, reducing redundant processing and speeding up results for everyone.
-*   **Smart Batching:** Groups transcription segments into single API calls to maximize efficiency and respect provider rate limits.
-*   **Real-time & Asynchronous:** Uses Server-Sent Events (SSE) for real-time updates on the frontend as your audio is processed.
-*   **Client-Side Fallback:** Includes a browser-based ASR model (Transformers.js) as a final fallback to ensure functionality even if all cloud providers are down.
-*   **Modern Tech Stack:** Built with Next.js, Tailwind CSS, and Cloudflare Workers for a fast, scalable, and modern user experience.
-*   **Data Privacy:** Audio files are automatically deleted after 7 days. No Personally Identifiable Information (PII) is stored.
-*   **Export Options:** Download your final transcripts in TXT or SRT format.
+- **Truly Zero-Cost:** Intelligently routes requests across multiple free-tier API providers (Groq, HuggingFace, etc.) to avoid costs for typical usage.
+- **Progressive Correction:** Get an instant raw transcript, followed by a quick AI correction, and finally an enhanced, high-accuracy version within seconds.
+- **Multi-Provider Fallback:** A resilient backend that automatically switches between LLM providers to ensure high availability and optimal speed.
+- **Community Cache:** Popular audio transcriptions are cached and shared, reducing redundant processing and speeding up results for everyone.
+- **Smart Batching:** Groups transcription segments into single API calls to maximize efficiency and respect provider rate limits.
+- **Real-time & Asynchronous:** Uses Server-Sent Events (SSE) for real-time updates on the frontend as your audio is processed.
+- **Client-Side Fallback:** Includes a browser-based ASR model (Transformers.js) as a final fallback to ensure functionality even if all cloud providers are down.
+- **Modern Tech Stack:** Built with Next.js, Tailwind CSS, and Cloudflare Workers for a fast, scalable, and modern user experience.
+- **Data Privacy:** Audio files are automatically deleted after 7 days. No Personally Identifiable Information (PII) is stored.
+- **Export Options:** Download your final transcripts in TXT or SRT format.
 
 ## Architecture Overview
 
@@ -76,18 +76,18 @@ SSE event types: `status`, `raw`, `quick`, `enhanced`, `done`, `error`.
 
 ## Technology Stack
 
-| Category          | Technology                                       |
-| ----------------- | ------------------------------------------------ |
-| **Framework**     | Next.js 14 (App Router)                          |
-| **Edge Runtime**  | Cloudflare Workers                               |
-| **Edge Framework**| Hono                                             |
-| **Language**      | TypeScript                                       |
-| **Styling**       | Tailwind CSS                                     |
-| **ASR Providers** | Cloudflare Workers AI, Transformers.js           |
-| **LLM Providers** | Groq, HuggingFace, Together.ai, Cohere           |
-| **Caching**       | Cloudflare KV (Community), IndexedDB (Local)     |
-| **Storage**       | Cloudflare R2                                    |
-| **Database**      | Cloudflare D1                                    |
+| Category           | Technology                                   |
+| ------------------ | -------------------------------------------- |
+| **Framework**      | Next.js 14 (App Router)                      |
+| **Edge Runtime**   | Cloudflare Workers                           |
+| **Edge Framework** | Hono                                         |
+| **Language**       | TypeScript                                   |
+| **Styling**        | Tailwind CSS                                 |
+| **ASR Providers**  | Cloudflare Workers AI, Transformers.js       |
+| **LLM Providers**  | Groq, HuggingFace, Together.ai, Cohere       |
+| **Caching**        | Cloudflare KV (Community), IndexedDB (Local) |
+| **Storage**        | Cloudflare R2                                |
+| **Database**       | Cloudflare D1                                |
 
 ## Quick Start
 
@@ -117,6 +117,7 @@ pnpm install
 The backend worker requires API keys to function. Create a `.dev.vars` file in the `apps/worker` directory:
 
 `apps/worker/.dev.vars`:
+
 ```ini
 # Whitelisted origin for local development
 ORIGIN_WHITELIST="http://localhost:3000"
@@ -144,44 +145,44 @@ This command uses `turbo` to run the Next.js web app and the Cloudflare Worker s
 pnpm dev
 ```
 
-*   Web app will be available at `http://localhost:3000`
-*   Worker API will be available at `http://127.0.0.1:8787`
+- Web app will be available at `http://localhost:3000`
+- Worker API will be available at `http://127.0.0.1:8787`
 
 ## Environment Variables & Bindings
 
 Worker (Cloudflare)
 
-| Key | Required | Description |
-| --- | --- | --- |
-| `ORIGIN_WHITELIST` | yes | Comma‑separated allowed origins for CORS. |
-| `LOG_LEVEL` | no | `info` | `warn` | `error`. |
-| `APP_SECRET` | recommended | Used for light signing/nonces. |
-| `GROQ_API_KEY` | optional | Enables Groq provider; disable via `DISABLE_GROQ=1`. |
-| `HF_API_TOKEN` | optional | Enables Hugging Face Inference API; disable via `DISABLE_HF=1`. |
-| `TOGETHER_API_KEY` | optional | Reserved for Together provider. |
-| `COHERE_API_KEY` | optional | Reserved for Cohere provider. |
-| `DISABLE_GROQ` | no | `'1'` or `true` to skip Groq in router. |
-| `DISABLE_HF` | no | `'1'` or `true` to skip HF in router. |
+| Key                | Required    | Description                                                     |
+| ------------------ | ----------- | --------------------------------------------------------------- | ------ | -------- |
+| `ORIGIN_WHITELIST` | yes         | Comma‑separated allowed origins for CORS.                       |
+| `LOG_LEVEL`        | no          | `info`                                                          | `warn` | `error`. |
+| `APP_SECRET`       | recommended | Used for light signing/nonces.                                  |
+| `GROQ_API_KEY`     | optional    | Enables Groq provider; disable via `DISABLE_GROQ=1`.            |
+| `HF_API_TOKEN`     | optional    | Enables Hugging Face Inference API; disable via `DISABLE_HF=1`. |
+| `TOGETHER_API_KEY` | optional    | Reserved for Together provider.                                 |
+| `COHERE_API_KEY`   | optional    | Reserved for Cohere provider.                                   |
+| `DISABLE_GROQ`     | no          | `'1'` or `true` to skip Groq in router.                         |
+| `DISABLE_HF`       | no          | `'1'` or `true` to skip HF in router.                           |
 
 Frontend (Next.js)
 
-| Key | Required | Description |
-| --- | --- | --- |
-| `NEXT_PUBLIC_API_BASE` | yes | Base URL of Worker orchestrator (e.g. `https://your-worker.workers.dev`). |
-| `NEXT_PUBLIC_ENV` | no | `development` or `production`. |
-| `NEXT_PUBLIC_ENABLE_TRANSFORMERS` | no | Gate browser fallback (Transformers.js). |
+| Key                               | Required | Description                                                               |
+| --------------------------------- | -------- | ------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_BASE`            | yes      | Base URL of Worker orchestrator (e.g. `https://your-worker.workers.dev`). |
+| `NEXT_PUBLIC_ENV`                 | no       | `development` or `production`.                                            |
+| `NEXT_PUBLIC_ENABLE_TRANSFORMERS` | no       | Gate browser fallback (Transformers.js).                                  |
 
 Wrangler Bindings (apps/worker/wrangler.toml)
 
-| Binding | Type | Purpose |
-| --- | --- | --- |
-| `COMMUNITY_CACHE` | KV | Community‑submitted corrections (text + meta). |
-| `RESPONSE_CACHE` | KV | Correction cache by signature `sha256(audioHash|mode|glossary)`. |
-| `QUOTA_COUNTERS` | KV | Minute/day counters, provider success/failure metrics. |
-| `JOB_STATE` | KV | Per‑job state (chunks, timestamps, stage). |
-| `R2_BUCKET` | R2 | Audio storage (original/chunks/artifacts). |
-| `DB` | D1 | Telemetry and usage tables (optional). |
-| `AI` | Workers AI | Primary ASR (Whisper‑equivalent) binding. |
+| Binding           | Type       | Purpose                                                |
+| ----------------- | ---------- | ------------------------------------------------------ | ---- | ----------- |
+| `COMMUNITY_CACHE` | KV         | Community‑submitted corrections (text + meta).         |
+| `RESPONSE_CACHE`  | KV         | Correction cache by signature `sha256(audioHash        | mode | glossary)`. |
+| `QUOTA_COUNTERS`  | KV         | Minute/day counters, provider success/failure metrics. |
+| `JOB_STATE`       | KV         | Per‑job state (chunks, timestamps, stage).             |
+| `R2_BUCKET`       | R2         | Audio storage (original/chunks/artifacts).             |
+| `DB`              | D1         | Telemetry and usage tables (optional).                 |
+| `AI`              | Workers AI | Primary ASR (Whisper‑equivalent) binding.              |
 
 Quota & Limits (defaults)
 
@@ -196,16 +197,17 @@ See `packages/shared/constants/index.ts` and `apps/worker/src/services/quota.ts`
 
 The project is a monorepo managed by pnpm and Turborepo.
 
-*   `apps/web`: The Next.js frontend application.
-*   `apps/worker`: The Cloudflare Worker backend that handles ASR, LLM corrections, and routing.
-*   `packages/shared`: Shared types, schemas, and constants used by both the web and worker apps.
-*   `packages/ui`: (If it exists) Shared React components.
+- `apps/web`: The Next.js frontend application.
+- `apps/worker`: The Cloudflare Worker backend that handles ASR, LLM corrections, and routing.
+- `packages/shared`: Shared types, schemas, and constants used by both the web and worker apps.
+- `packages/ui`: (If it exists) Shared React components.
 
 ## Roadmap
 
 Our goal is to continuously improve the accuracy, speed, and feature set of TranscriptorAI while adhering to the "truly free" philosophy.
 
 ### Week 1-2 (Core MVP)
+
 - [x] Monorepo & Cloudflare Worker Setup
 - [x] Groq + HuggingFace Integration with Fallback
 - [x] Smart Batching & Quota Management
@@ -214,6 +216,7 @@ Our goal is to continuously improve the accuracy, speed, and feature set of Tran
 - [x] Frontend SSE Integration & Transcript Viewer
 
 ### Week 3-4 (Enhancements)
+
 - [x] Browser-based ASR Fallback (Transformers.js)
 - [ ] Integration of Together AI & Cohere
 - [ ] Advanced Caching Strategies
@@ -221,6 +224,7 @@ Our goal is to continuously improve the accuracy, speed, and feature set of Tran
 - [ ] Glossary System for domain-specific terms
 
 ### Future
+
 - [ ] Speaker Diarization
 - [ ] P2P Correction Sharing (WebRTC)
 - [ ] Developer API
@@ -228,30 +232,31 @@ Our goal is to continuously improve the accuracy, speed, and feature set of Tran
 
 ### Latest Session (Day 9–10 Summary)
 
-* **Export pipeline hardened** – Added shared helpers with ±0.5 s timestamp tolerance and gap merging, refactored the worker export route, and expanded tests for TXT/SRT/VTT/JSON outputs.
-* **Transformers.js fallback** – Created a client hook to lazily load `@xenova/transformers@^2.17.2`, gate by device memory and server availability, and feed local ASR results into the transcript UI with preload controls and clear status messaging.
-* **Testing & debugging** – Executed `pnpm exec vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1 --reporter=verbose` for deterministic sandbox runs; resolved dependency issues by aligning to the latest published Transformers.js release and documenting manual installs when DNS blocks npm.
-* **Current blockers** – None functionally; optional telemetry for fallback usage remains a future enhancement.
+- **Export pipeline hardened** – Added shared helpers with ±0.5 s timestamp tolerance and gap merging, refactored the worker export route, and expanded tests for TXT/SRT/VTT/JSON outputs.
+- **Transformers.js fallback** – Created a client hook to lazily load `@xenova/transformers@^2.17.2`, gate by device memory and server availability, and feed local ASR results into the transcript UI with preload controls and clear status messaging.
+- **Testing & debugging** – Executed `pnpm exec vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1 --reporter=verbose` for deterministic sandbox runs; resolved dependency issues by aligning to the latest published Transformers.js release and documenting manual installs when DNS blocks npm.
+- **Current blockers** – None functionally; optional telemetry for fallback usage remains a future enhancement.
 
 ### Latest Session (Day 11–12 Summary)
 
-* **Provider cascade safeguards** – Added regression tests covering quota exhaustion and pre-emptive switching so the router consistently falls back when Groq/HF limits are reached.
-* **Batching optimizations** – Mode-aware flush timers (quick vs enhanced), background flush scheduling, and latency telemetry recorded per provider to Cloudflare KV.
-* **Metrics enrichment** – `/api/metrics` now exposes latency aggregates alongside quota and success data, enabling the dashboard to trend provider performance.
-* **Current blockers** – Repo still carries legacy ESLint/TypeScript violations (implicit `any`, missing return types) that need a dedicated lint cleanup pass.
+- **Provider cascade safeguards** – Added regression tests covering quota exhaustion and pre-emptive switching so the router consistently falls back when Groq/HF limits are reached.
+- **Batching optimizations** – Mode-aware flush timers (quick vs enhanced), background flush scheduling, and latency telemetry recorded per provider to Cloudflare KV.
+- **Metrics enrichment** – `/api/metrics` now exposes latency aggregates alongside quota and success data, enabling the dashboard to trend provider performance.
+- **Current blockers** – Repo still carries legacy ESLint/TypeScript violations (implicit `any`, missing return types) that need a dedicated lint cleanup pass.
 
 ### Upcoming (Day 11–12 Targets)
 
-* **Day 11 – Cascade & quota resilience** (`prd.md`, `prd.yaml`, `step.md`): stress provider fallback, simulate quota exhaustion, ensure pre-emptive switches, and capture recovery behaviour.
-* **Day 12 – Performance & caching**: profile API latency, tune batching flush timers and prompt compression, improve KV hit ratios, optimize frontend bundles, and surface metrics in the dashboard.
+- **Day 11 – Cascade & quota resilience** (`prd.md`, `prd.yaml`, `step.md`): stress provider fallback, simulate quota exhaustion, ensure pre-emptive switches, and capture recovery behaviour.
+- **Day 12 – Performance & caching**: profile API latency, tune batching flush timers and prompt compression, improve KV hit ratios, optimize frontend bundles, and surface metrics in the dashboard.
 
 ## Contributing
+
 ## Deployment Guide
 
 Cloudflare Workers (orchestrator)
 
-1) Configure bindings in `apps/worker/wrangler.toml` (KV, R2, D1, AI).
-2) Set secrets:
+1. Configure bindings in `apps/worker/wrangler.toml` (KV, R2, D1, AI).
+2. Set secrets:
 
 ```bash
 cd apps/worker
@@ -261,7 +266,7 @@ wrangler secret put APP_SECRET
 # optional: TOGETHER_API_KEY, COHERE_API_KEY, TURNSTILE_SECRET
 ```
 
-3) Deploy:
+3. Deploy:
 
 ```bash
 pnpm -F @transcriptorai/worker deploy
@@ -269,8 +274,8 @@ pnpm -F @transcriptorai/worker deploy
 
 Next.js (Vercel or Cloudflare Pages)
 
-1) Set `NEXT_PUBLIC_API_BASE` to the Worker URL.
-2) Deploy via provider UI/CLI.
+1. Set `NEXT_PUBLIC_API_BASE` to the Worker URL.
+2. Deploy via provider UI/CLI.
 
 Cloudflare Pages (+ Functions) is supported; this repo assumes the Worker orchestrator is separate for clearer scaling and quotas.
 

@@ -1,15 +1,15 @@
-import globals from 'globals';
-import pluginJs from '@eslint/js';
-import pluginTs from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
-import pluginReact from 'eslint-plugin-react';
-import pluginReactHooks from 'eslint-plugin-react-hooks';
-import pluginNext from '@next/eslint-plugin-next';
-import pluginPrettier from 'eslint-plugin-prettier';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import globals from 'globals'
+import pluginJs from '@eslint/js'
+import pluginTs from '@typescript-eslint/eslint-plugin'
+import tsParser from '@typescript-eslint/parser'
+import pluginReact from 'eslint-plugin-react'
+import pluginReactHooks from 'eslint-plugin-react-hooks'
+import pluginNext from '@next/eslint-plugin-next'
+import pluginPrettier from 'eslint-plugin-prettier'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default [
   // Special config for Worker app
@@ -55,11 +55,14 @@ export default [
       '@typescript-eslint/no-unsafe-argument': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/restrict-template-expressions': ['error', {
-        allowNumber: true,
-        allowBoolean: true,
-        allowNullish: true,
-      }],
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        {
+          allowNumber: true,
+          allowBoolean: true,
+          allowNullish: true,
+        },
+      ],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
       'prefer-const': 'error',
@@ -70,7 +73,16 @@ export default [
   // Config for Web app and other files
   {
     files: ['**/*.{js,mjs,cjs,ts,tsx}'],
-    ignores: ['node_modules', 'dist', '.next', '*.config.js', 'apps/worker/**/*'],
+    ignores: [
+      'node_modules',
+      'dist',
+      '**/dist/**',
+      '.next',
+      '*.config.js',
+      'apps/worker/**/*',
+      '**/*.d.ts',
+      'packages/shared/dist/**',
+    ],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -132,4 +144,4 @@ export default [
       },
     },
   },
-];
+]

@@ -1,9 +1,39 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent, type ReactElement } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ReactElement } from 'react'
+import { MAX_AUDIO_DURATION_MINUTES, MAX_FILE_SIZE_MB } from '@transcriptorai/shared/constants'
 import ProgressiveTranscriptView, { type Stage } from './components/progressive-transcript-view'
 import { transformersEnabled } from './lib/flags'
 import { useTransformersFallback } from './hooks/use-transformers-fallback'
+
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+const MAX_DURATION_SECONDS = MAX_AUDIO_DURATION_MINUTES * 60
+
+function formatMB(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(1)
+}
+
+function formatMinutes(seconds: number): string {
+  return (seconds / 60).toFixed(1)
+}
+
+async function getAudioDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const audio = document.createElement('audio')
+    audio.preload = 'metadata'
+    audio.src = url
+    audio.onloadedmetadata = (): void => {
+      URL.revokeObjectURL(url)
+      const duration = audio.duration
+      resolve(Number.isFinite(duration) ? duration : null)
+    }
+    audio.onerror = (): void => {
+      URL.revokeObjectURL(url)
+      resolve(null)
+    }
+  })
+}
 
 export default function HomePage(): ReactElement {
   const [isRecording, setIsRecording] = useState(false)
@@ -23,161 +53,285 @@ export default function HomePage(): ReactElement {
     enhanced: 0,
   })
   const sseRef = useRef<EventSource | null>(null)
+  const jobIdRef = useRef<string | null>(null)
+  const reconnectAttempts = useRef(0)
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const heartbeatTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const updateJobId = (value: string | null): void => {
+    jobIdRef.current = value
+    setJobId(value)
+  }
+
+  const clearReconnectTimer = (): void => {
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current)
+      reconnectTimer.current = null
+    }
+  }
+
+  const clearHeartbeat = (): void => {
+    if (heartbeatTimer.current) {
+      clearTimeout(heartbeatTimer.current)
+      heartbeatTimer.current = null
+    }
+  }
+
+  function attemptReconnect(): void {
+    if (!jobIdRef.current) return
+    if (reconnectTimer.current) return
+    reconnectAttempts.current += 1
+    if (reconnectAttempts.current > 5) {
+      setEvents((prev) => [...prev, 'SSE reconnect failed after 5 attempts'])
+      clearHeartbeat()
+      return
+    }
+    const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 10000)
+    reconnectTimer.current = setTimeout(() => {
+      reconnectTimer.current = null
+      if (!jobIdRef.current) return
+      setEvents((prev) => [...prev, `SSE reconnect attempt ${String(reconnectAttempts.current)}`])
+      openEventSource(jobIdRef.current)
+    }, delay)
+  }
+
+  function scheduleHeartbeat(): void {
+    clearHeartbeat()
+    heartbeatTimer.current = setTimeout(() => {
+      setEvents((prev) => [...prev, 'SSE heartbeat timeout, attempting reconnect'])
+      attemptReconnect()
+    }, 20000)
+  }
+
+  function attachEventHandlers(es: EventSource, job: string): void {
+    es.onopen = (): void => {
+      reconnectAttempts.current = 0
+      clearReconnectTimer()
+      scheduleHeartbeat()
+      setEvents((prev) => [...prev, `SSE connected: ${job}`])
+    }
+
+    es.addEventListener('status', (ev) => {
+      scheduleHeartbeat()
+      const e = ev
+      const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
+      setEvents((prev) => [...prev, `status: ${msg}`])
+      try {
+        const d: unknown = JSON.parse(e.data as string)
+        if (
+          typeof d === 'object' &&
+          d !== null &&
+          'totalChunks' in d &&
+          typeof (d as { totalChunks?: unknown }).totalChunks === 'number'
+        ) {
+          setTotalChunks((d as { totalChunks: number }).totalChunks)
+        }
+      } catch {
+        /* ignore */
+      }
+    })
+
+    es.addEventListener('raw', (ev) => {
+      scheduleHeartbeat()
+      const e = ev
+      const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
+      setEvents((prev) => [...prev, `raw: ${msg}`])
+      try {
+        const d: unknown = JSON.parse(e.data as string)
+        if (
+          typeof d === 'object' &&
+          d !== null &&
+          'chunkIndex' in d &&
+          'text' in d &&
+          Number.isFinite(Number((d as { chunkIndex?: unknown }).chunkIndex))
+        ) {
+          const idx = Number((d as { chunkIndex: unknown }).chunkIndex)
+          const text =
+            typeof (d as { text?: unknown }).text === 'string' ? (d as { text: string }).text : ''
+
+          setChunks((prev) => {
+            const arr = [...prev]
+            if (!arr[idx]) arr[idx] = { index: idx }
+            arr[idx].raw = text
+            arr[idx].final = arr[idx].final ?? text
+            return arr
+          })
+        }
+      } catch {
+        /* ignore */
+      }
+      setDownloadStage((s) => (s === 'raw' ? 'raw' : s))
+    })
+
+    es.addEventListener('quick', (ev) => {
+      scheduleHeartbeat()
+      const e = ev
+      const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
+      setEvents((prev) => [...prev, `quick: ${msg}`])
+      try {
+        const d: unknown = JSON.parse(e.data as string)
+        if (
+          typeof d === 'object' &&
+          d !== null &&
+          'chunkIndex' in d &&
+          'text' in d &&
+          Number.isFinite(Number((d as { chunkIndex?: unknown }).chunkIndex))
+        ) {
+          const idx = Number((d as { chunkIndex: unknown }).chunkIndex)
+          const text =
+            typeof (d as { text?: unknown }).text === 'string' ? (d as { text: string }).text : ''
+
+          setChunks((prev) => {
+            const arr = [...prev]
+            if (!arr[idx]) arr[idx] = { index: idx }
+            arr[idx].quick = text
+            arr[idx].final = arr[idx].enhanced ?? text
+            return arr
+          })
+        }
+      } catch {
+        /* ignore */
+      }
+      setDownloadStage((s) => (s === 'enhanced' ? s : 'quick'))
+    })
+
+    es.addEventListener('enhanced', (ev) => {
+      scheduleHeartbeat()
+      const e = ev
+      const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
+      setEvents((prev) => [...prev, `enhanced: ${msg}`])
+      try {
+        const d: unknown = JSON.parse(e.data as string)
+        if (
+          typeof d === 'object' &&
+          d !== null &&
+          'chunkIndex' in d &&
+          'text' in d &&
+          Number.isFinite(Number((d as { chunkIndex?: unknown }).chunkIndex))
+        ) {
+          const idx = Number((d as { chunkIndex: unknown }).chunkIndex)
+          const text =
+            typeof (d as { text?: unknown }).text === 'string' ? (d as { text: string }).text : ''
+
+          setChunks((prev) => {
+            const arr = [...prev]
+            if (!arr[idx]) arr[idx] = { index: idx }
+            arr[idx].enhanced = text
+            arr[idx].final = text
+            return arr
+          })
+        }
+      } catch {
+        /* ignore */
+      }
+      setDownloadStage('enhanced')
+    })
+
+    es.addEventListener('progress', (ev) => {
+      scheduleHeartbeat()
+      const e = ev
+      try {
+        const d: unknown = JSON.parse(e.data as string)
+        if (typeof d === 'object' && d !== null && 'stage' in d && 'completed' in d) {
+          const stage = (d as { stage: unknown }).stage
+          const completed = Number((d as { completed: unknown }).completed ?? 0)
+          if (stage === 'raw') setProgress((p) => ({ ...p, raw: completed }))
+          if (stage === 'quick') setProgress((p) => ({ ...p, quick: completed }))
+          if (stage === 'enhanced') setProgress((p) => ({ ...p, enhanced: completed }))
+        }
+      } catch {
+        /* ignore */
+      }
+    })
+
+    es.addEventListener('sse-error', (ev) => {
+      scheduleHeartbeat()
+      const e = ev
+      const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
+      setEvents((prev) => [...prev, `sse-error: ${msg}`])
+    })
+
+    es.addEventListener('heartbeat', () => {
+      scheduleHeartbeat()
+    })
+
+    es.addEventListener('done', (ev) => {
+      scheduleHeartbeat()
+      const e = ev
+      const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
+      setEvents((prev) => [...prev, `done: ${msg}`])
+      clearHeartbeat()
+      clearReconnectTimer()
+      reconnectAttempts.current = 0
+    })
+
+    es.onerror = (): void => {
+      setEvents((prev) => [...prev, 'SSE connection error, scheduling reconnect'])
+      attemptReconnect()
+    }
+  }
+
+  function openEventSource(job: string | null): void {
+    if (!job) return
+    if (sseRef.current) {
+      sseRef.current.close()
+      sseRef.current = null
+    }
+    const es = new EventSource(`${apiBase}/api/transcribe/${job}/stream`)
+    sseRef.current = es
+    attachEventHandlers(es, job)
+  }
+
+  useEffect(() => {
+    return (): void => {
+      clearHeartbeat()
+      clearReconnectTimer()
+      if (sseRef.current) {
+        sseRef.current.close()
+        sseRef.current = null
+      }
+    }
+  }, [])
 
   const handleStartRecording = async (): Promise<void> => {
     if (!isRecording) {
       setIsRecording(true)
       try {
-        const res = await fetch(`${apiBase}/api/transcribe/start`, { method: 'POST' })
-        const data = (await res.json()) as { id: string }
-        const id = data.id
-        setJobId(id)
-        // Open SSE
-        const es = new EventSource(`${apiBase}/api/transcribe/${id}/stream`)
-        sseRef.current = es
-        es.addEventListener('status', (ev) => {
-          const e = ev
-          const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
-          setEvents((prev) => [...prev, `status: ${msg}`])
+        const res = await fetch(`${apiBase}/api/transcribe/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: 'recording' }),
+        })
+        const raw = await res.text()
+        let parsed: { id?: string; error?: string } | null = null
+        if (raw) {
           try {
-            const d: unknown = JSON.parse(e.data as string)
-            if (
-              typeof d === 'object' &&
-              d !== null &&
-              'totalChunks' in d &&
-              typeof (d as { totalChunks?: unknown }).totalChunks === 'number'
-            ) {
-              setTotalChunks((d as { totalChunks: number }).totalChunks)
-            }
-          } catch {
-            /* ignore */
+            parsed = JSON.parse(raw) as { id?: string; error?: string }
+          } catch (error) {
+            console.error('start parse error', error)
           }
-        })
-        es.addEventListener('raw', (ev) => {
-          const e = ev
-          const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
-          setEvents((prev) => [...prev, `raw: ${msg}`])
-          try {
-            const d: unknown = JSON.parse(e.data as string)
-            if (
-              typeof d === 'object' &&
-              d !== null &&
-              'chunkIndex' in d &&
-              'text' in d &&
-              Number.isFinite(Number((d as { chunkIndex?: unknown }).chunkIndex))
-            ) {
-              const idx = Number((d as { chunkIndex: unknown }).chunkIndex)
-              const text =
-                typeof (d as { text?: unknown }).text === 'string'
-                  ? (d as { text: string }).text
-                  : ''
-
-              setChunks((prev) => {
-                const arr = [...prev]
-                if (!arr[idx]) arr[idx] = { index: idx }
-                arr[idx].raw = text
-                arr[idx].final = arr[idx].final ?? text
-                return arr
-              })
-            }
-          } catch {
-            /* ignore */
-          }
-          setDownloadStage((s) => (s === 'raw' ? 'raw' : s))
-        })
-        es.addEventListener('quick', (ev) => {
-          const e = ev
-          const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
-          setEvents((prev) => [...prev, `quick: ${msg}`])
-          try {
-            const d: unknown = JSON.parse(e.data as string)
-            if (
-              typeof d === 'object' &&
-              d !== null &&
-              'chunkIndex' in d &&
-              'text' in d &&
-              Number.isFinite(Number((d as { chunkIndex?: unknown }).chunkIndex))
-            ) {
-              const idx = Number((d as { chunkIndex: unknown }).chunkIndex)
-              const text =
-                typeof (d as { text?: unknown }).text === 'string'
-                  ? (d as { text: string }).text
-                  : ''
-
-              setChunks((prev) => {
-                const arr = [...prev]
-                if (!arr[idx]) arr[idx] = { index: idx }
-                arr[idx].quick = text
-                arr[idx].final = arr[idx].enhanced ?? text
-                return arr
-              })
-            }
-          } catch {
-            /* ignore */
-          }
-          setDownloadStage((s) => (s === 'enhanced' ? s : 'quick'))
-        })
-        es.addEventListener('enhanced', (ev) => {
-          const e = ev
-          const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
-          setEvents((prev) => [...prev, `enhanced: ${msg}`])
-          try {
-            const d: unknown = JSON.parse(e.data as string)
-            if (
-              typeof d === 'object' &&
-              d !== null &&
-              'chunkIndex' in d &&
-              'text' in d &&
-              Number.isFinite(Number((d as { chunkIndex?: unknown }).chunkIndex))
-            ) {
-              const idx = Number((d as { chunkIndex: unknown }).chunkIndex)
-              const text =
-                typeof (d as { text?: unknown }).text === 'string'
-                  ? (d as { text: string }).text
-                  : ''
-
-              setChunks((prev) => {
-                const arr = [...prev]
-                if (!arr[idx]) arr[idx] = { index: idx }
-                arr[idx].enhanced = text
-                arr[idx].final = text
-                return arr
-              })
-            }
-          } catch {
-            /* ignore */
-          }
-          setDownloadStage('enhanced')
-        })
-        es.addEventListener('done', (ev) => {
-          const e = ev
-          const msg = typeof e.data === 'string' ? e.data : JSON.stringify(e.data)
-          setEvents((prev) => [...prev, `done: ${msg}`])
-        })
-        es.addEventListener('error', () => {
-          setEvents((prev) => [...prev, `error`])
-        })
-        es.addEventListener('progress', (ev) => {
-          const e = ev
-          try {
-            const d: unknown = JSON.parse(e.data as string)
-            if (typeof d === 'object' && d !== null && 'stage' in d && 'completed' in d) {
-              const stage = (d as { stage: unknown }).stage
-              const completed = Number((d as { completed: unknown }).completed ?? 0)
-              if (stage === 'raw') setProgress((p) => ({ ...p, raw: completed }))
-              if (stage === 'quick') setProgress((p) => ({ ...p, quick: completed }))
-              if (stage === 'enhanced') setProgress((p) => ({ ...p, enhanced: completed }))
-            }
-          } catch {
-            /* ignore */
-          }
-        })
-      } catch (e) {
-        console.error(e)
+        }
+        if (!res.ok || !parsed || typeof parsed.id !== 'string') {
+          const reason =
+            (parsed && typeof parsed.error === 'string' ? parsed.error : res.statusText) ||
+            'unknown'
+          setEvents((prev) => [...prev, `start recording rejected: ${reason}`])
+          setIsRecording(false)
+          return
+        }
+        const id = parsed.id
+        updateJobId(id)
+        setEvents((prev) => [...prev, `start recording ok: job ${id}`])
+        openEventSource(id)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown error'
+        setEvents((prev) => [...prev, `start recording error: ${message}`])
         setIsRecording(false)
       }
     } else {
       setIsRecording(false)
+      clearHeartbeat()
+      clearReconnectTimer()
       if (sseRef.current) {
         sseRef.current.close()
         sseRef.current = null
@@ -191,44 +345,69 @@ export default function HomePage(): ReactElement {
 
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = event.target.files?.[0]
-    if (file) {
-      setEvents((prev) => [...prev, `upload: ${file.name}`])
-      if (!transformersEnabled()) {
-        setEvents((prev) => [...prev, 'fallback disabled via env'])
-        return
-      }
-      if (!fallback.allowed || fallback.status === 'blocked') {
+    if (!file) return
+
+    setEvents((prev) => [...prev, `upload: ${file.name}`])
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setEvents((prev) => [
+        ...prev,
+        `upload rejected: ukuran ${formatMB(file.size)}MB > limit ${String(MAX_FILE_SIZE_MB)}MB`,
+      ])
+      return
+    }
+
+    let durationSeconds: number | null = null
+    try {
+      durationSeconds = await getAudioDuration(file)
+    } catch (error) {
+      console.warn('duration check failed', error)
+    }
+    if (durationSeconds === null) {
+      setEvents((prev) => [...prev, 'durasi tidak terbaca, lanjut dengan asumsi aman'])
+    } else {
+      setEvents((prev) => [...prev, `durasi terdeteksi ~${formatMinutes(durationSeconds)} menit`])
+      if (durationSeconds > MAX_DURATION_SECONDS) {
         setEvents((prev) => [
           ...prev,
-          `fallback unavailable: ${fallback.reason || 'unknown reason'}`,
+          `upload rejected: durasi ${formatMinutes(durationSeconds)} menit > limit ${String(MAX_AUDIO_DURATION_MINUTES)} menit`,
         ])
         return
       }
-      try {
-        setEvents((prev) => [...prev, 'fallback starting model load'])
-        const result = await fallback.transcribeFile(file)
-        const segments = result.segments.filter((seg) => seg.text.trim().length)
-        setEvents((prev) => [
-          ...prev,
-          `fallback success: ${String(segments.length || result.segments.length)} segments in ${String(Math.round(result.elapsedMs))}ms`,
-        ])
-        const mapped = (segments.length ? segments : result.segments).map((seg, idx) => ({
-          index: idx,
-          raw: seg.text,
-          quick: seg.text,
-          enhanced: seg.text,
-          final: seg.text,
-        }))
-        setChunks(mapped)
-        setTotalChunks(mapped.length)
-        setProgress({ raw: mapped.length, quick: mapped.length, enhanced: mapped.length })
-        setDownloadStage('enhanced')
-        setSelectedStage('final')
-        setJobId(null)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'unknown error'
-        setEvents((prev) => [...prev, `fallback error: ${message}`])
-      }
+    }
+
+    if (!transformersEnabled()) {
+      setEvents((prev) => [...prev, 'fallback disabled via env'])
+      return
+    }
+    if (!fallback.allowed || fallback.status === 'blocked') {
+      setEvents((prev) => [...prev, `fallback unavailable: ${fallback.reason || 'unknown reason'}`])
+      return
+    }
+    try {
+      setEvents((prev) => [...prev, 'fallback starting model load'])
+      const result = await fallback.transcribeFile(file)
+      const segments = result.segments.filter((seg) => seg.text.trim().length)
+      setEvents((prev) => [
+        ...prev,
+        `fallback success: ${String(segments.length || result.segments.length)} segments in ${String(Math.round(result.elapsedMs))}ms`,
+      ])
+      const mapped = (segments.length ? segments : result.segments).map((seg, idx) => ({
+        index: idx,
+        raw: seg.text,
+        quick: seg.text,
+        enhanced: seg.text,
+        final: seg.text,
+      }))
+      setChunks(mapped)
+      setTotalChunks(mapped.length)
+      setProgress({ raw: mapped.length, quick: mapped.length, enhanced: mapped.length })
+      setDownloadStage('enhanced')
+      setSelectedStage('final')
+      updateJobId(null)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error'
+      setEvents((prev) => [...prev, `fallback error: ${message}`])
     }
   }
 
@@ -264,7 +443,7 @@ export default function HomePage(): ReactElement {
               🎤 Rekam Audio
             </h2>
             <p className="mb-6 text-gray-600 dark:text-gray-300">
-              Rekam langsung dari browser Anda, maksimal 10 menit
+              Rekam langsung dari browser Anda, maksimal {MAX_AUDIO_DURATION_MINUTES} menit
             </p>
             <button
               onClick={() => {
@@ -289,7 +468,7 @@ export default function HomePage(): ReactElement {
               📁 Upload Audio
             </h2>
             <p className="mb-6 text-gray-600 dark:text-gray-300">
-              Drag & drop atau pilih file audio (max 100MB)
+              Drag & drop atau pilih file audio (max {MAX_FILE_SIZE_MB}MB)
             </p>
             <label className="block w-full">
               <input

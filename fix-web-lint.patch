@@ -1,0 +1,10 @@
+#!/bin/bash
+# Safe lint fixes for web app - minimal changes only
+
+echo "Applying safe TypeScript fixes to web app..."
+
+# First, let's check current state
+echo "Current lint errors count:"
+pnpm -F @transcriptorai/web lint 2>&1 | grep -c "error" || true
+
+echo "Creating temporary test file..."

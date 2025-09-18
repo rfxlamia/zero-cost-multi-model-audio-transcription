@@ -1,0 +1,45 @@
+name = "transcript-orchestrator"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+[vars]
+LOG_LEVEL = "info"
+ORIGIN_WHITELIST = "http://localhost:3000,https://yourapp.vercel.app"
+
+[[kv_namespaces]]
+binding = "COMMUNITY_CACHE"
+id = "f3543c9f6ea24ae59afc4524aea4c855" # Replace with actual KV namespace ID
+preview_id = "f3543c9f6ea24ae59afc4524aea4c855" # Use a separate preview namespace in real projects
+
+[[kv_namespaces]]
+binding = "RESPONSE_CACHE"
+id = "f7fc29d18fb44faca9d95d798470d0d8" # Replace with actual KV namespace ID
+preview_id = "f7fc29d18fb44faca9d95d798470d0d8"
+
+[[kv_namespaces]]
+binding = "QUOTA_COUNTERS"
+id = "cbb018717d8e4845b1d2a66dc3be7d8d" # Replace with actual KV namespace ID
+preview_id = "cbb018717d8e4845b1d2a66dc3be7d8d"
+
+[[kv_namespaces]]
+binding = "JOB_STATE"
+id = "1979c78720b7491d83dd5efab8ac5d41" # Replace with actual KV namespace ID
+preview_id = "1979c78720b7491d83dd5efab8ac5d41"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "r2-audio" # Replace with actual R2 bucket name if different
+preview_bucket_name = "r2-audio"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zerocost-db"
+database_id = "9ff64b62-8821-4b70-91e0-6456527b8e20" # Replace with actual D1 database ID
+preview_database_id = "9ff64b62-8821-4b70-91e0-6456527b8e20"
+
+[ai]
+binding = "AI" # Workers AI binding for ASR
+
+[observability]
+enabled = true

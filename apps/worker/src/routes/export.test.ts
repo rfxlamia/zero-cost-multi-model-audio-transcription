@@ -3,8 +3,10 @@ import { exp } from './export'
 import app from '../index'
 import type { Env } from '../index'
 
-function createKV(initial: Record<string, any> = {}) {
-  const store = new Map<string, any>(Object.entries(initial))
+type KvValue = Record<string, unknown> | string | null
+
+function createKV(initial: Record<string, KvValue> = {}) {
+  const store = new Map<string, KvValue>(Object.entries(initial))
   return {
     get: async (key: string, type?: 'json' | 'text' | 'arrayBuffer' | 'stream') => {
       const v = store.get(key)
@@ -26,24 +28,46 @@ function createKV(initial: Record<string, any> = {}) {
   } as unknown as KVNamespace
 }
 
-function makeEnv(overrides: Partial<Env> = {}, jobMap: Record<string, any> = {}): Env {
+type Transcript = {
+  raw?: string
+  quick?: string
+  enhanced?: string
+  final?: string
+}
+
+type JobChunk = {
+  startTime?: number
+  endTime?: number
+  transcription?: Transcript
+}
+
+type JobState = {
+  id: string
+  createdAt?: string
+  status?: string
+  chunks: JobChunk[]
+}
+
+type JobStateMap = Record<string, JobState>
+
+function makeEnv(overrides: Partial<Env> = {}, jobMap: JobStateMap = {}): Env {
   const nullKV = createKV()
   return {
     COMMUNITY_CACHE: nullKV,
     RESPONSE_CACHE: nullKV,
     QUOTA_COUNTERS: nullKV,
     JOB_STATE: createKV(jobMap),
-    R2_BUCKET: {} as any,
-    DB: {} as any,
-    AI: {} as any,
+    R2_BUCKET: {} as never,
+    DB: {} as never,
+    AI: {} as never,
     GROQ_API_KEY: undefined,
     HF_API_TOKEN: undefined,
     ORIGIN_WHITELIST: 'http://localhost:3000',
     LOG_LEVEL: 'info',
     DISABLE_GROQ: undefined,
     DISABLE_HF: undefined,
-    ...(overrides as any),
-  }
+    ...(overrides as Partial<Env>),
+  } as Env
 }
 
 describe('export route', () => {
