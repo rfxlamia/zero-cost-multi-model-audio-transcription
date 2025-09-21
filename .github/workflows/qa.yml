@@ -1,0 +1,42 @@
+name: qa
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Preflight env
+        run: pnpm preflight
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      - run: pnpm -w build
+      - run: pnpm test:unit
+      - run: pnpm test:contract
+      - run: pnpm test:integration
+      - name: Run E2E
+        run: pnpm e2e
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      - name: Perf smoke
+        run: pnpm perf
+        env:
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          TS_TOKEN: ${{ secrets.TS_TOKEN }}
+      - name: Lighthouse
+        run: pnpm lhci
+      - name: Security scans
+        run: pnpm scan:bundle && pnpm scan:secrets && pnpm scan:licenses

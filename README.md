@@ -249,6 +249,12 @@ Our goal is to continuously improve the accuracy, speed, and feature set of Tran
 - **Day 11 – Cascade & quota resilience** (`prd.md`, `prd.yaml`, `step.md`): stress provider fallback, simulate quota exhaustion, ensure pre-emptive switches, and capture recovery behaviour.
 - **Day 12 – Performance & caching**: profile API latency, tune batching flush timers and prompt compression, improve KV hit ratios, optimize frontend bundles, and surface metrics in the dashboard.
 
+## Roadmap
+
+- **Short term (pre-MVP deploy):** Stabilize synchronous correction path with stronger caching and lightweight queue limits so `pnpm qa:all` and deployment smoke tests run tanpa timeout.
+- **Post-MVP async refactor:** Migrasikan batch koreksi ke pola Cloudflare Queues (POST ➜ 202 + `jobId`, consumer Worker mengolah provider secara background, endpoint status memantau KV) untuk menghilangkan request panjang dan memberikan skalabilitas tinggi.
+- **Provider & QA expansion:** Integrasi Together/Cohere, perluasan contract test per provider, dan otomatisasi evaluasi akurasi berbasis gold audio di pipeline CI.
+
 ## Contributing
 
 ## Deployment Guide

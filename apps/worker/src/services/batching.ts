@@ -18,6 +18,10 @@ type Queue = {
 const MAX_BATCH = 5
 const DEFAULT_FLUSH_MS = 700
 const QUICK_FLUSH_MS = 250
+const MAX_PENDING_PER_QUEUE = 20
+const MAX_TOTAL_PENDING = 100
+
+let totalPending = 0
 
 const queues = new Map<string, Queue>() // key: mode|glossarySignature
 
@@ -38,6 +42,7 @@ async function flushQueue(key: string, env: any) {
   if (!q || q.items.length === 0) return
   // Take up to MAX_BATCH
   const batch = q.items.splice(0, MAX_BATCH)
+  totalPending = Math.max(0, totalPending - batch.length)
   if (q.timer) {
     globalThis.clearTimeout(q.timer)
     q.timer = null
@@ -90,7 +95,14 @@ export function enqueueForCorrection(
     } else if (q.flushMs !== flushMs) {
       q.flushMs = flushMs
     }
+
+    if (q.items.length >= MAX_PENDING_PER_QUEUE || totalPending >= MAX_TOTAL_PENDING) {
+      reject(new Error('queue_overloaded'))
+      return
+    }
+
     q.items.push({ text, audioHash, resolve, reject })
+    totalPending += 1
 
     if (q.items.length >= MAX_BATCH) {
       // flush immediately
@@ -118,4 +130,5 @@ export function getQueueStats() {
 
 export function __resetQueuesForTest() {
   queues.clear()
+  totalPending = 0
 }

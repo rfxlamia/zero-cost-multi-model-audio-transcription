@@ -4,6 +4,7 @@ import type { BatchCorrectionResponse, CorrectionSegment } from '../types'
 // import { correctTextsWithFallback } from '../services/router' // Using batching service instead
 import { enqueueForCorrection } from '../services/batching'
 import { getCachedText, setResponseCache } from '../utils/cache'
+import { evaluateFaithfulness } from '../utils/faithfulness'
 
 export const correct = new Hono<{ Bindings: Env }>()
 
@@ -39,7 +40,7 @@ correct.post('/api/correct/batch', async (c) => {
     if (!segments.length) return c.json({ error: 'No valid segments' }, 400)
 
     // Cache-first per segment
-    const cachedResults: { index: number; corrected: string; provider: string }[] = []
+    const cacheHits = new Map<number, { text: string; provider: string }>()
     const toProcess: { index: number; seg: CorrectionSegment }[] = []
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i]
@@ -50,54 +51,92 @@ correct.post('/api/correct/batch', async (c) => {
         seg.glossary
       )
       if (hit?.text) {
-        cachedResults.push({ index: i, corrected: hit.text, provider: hit.provider })
+        cacheHits.set(i, { text: hit.text, provider: hit.provider })
       } else {
         toProcess.push({ index: i, seg })
       }
     }
 
     let provider = 'cache'
-    const out: string[] = []
+    const routerOutputs = new Map<number, string>()
     if (toProcess.length) {
       // Use aggregator to allow cross-request batching (≤5 items or 700ms)
       const promises = toProcess.map(({ seg }) =>
         enqueueForCorrection(c.env, seg.mode, seg.text, seg.audioHash, seg.glossary)
+          .then((text) => ({ ok: true as const, text, seg }))
+          .catch((error: unknown) => ({ ok: false as const, error, seg }))
       )
-      const correctedTexts = await Promise.all(promises)
-      provider = 'router' // provider could be mixed; we return 'mixed' later if any cache exists
-      for (let j = 0; j < toProcess.length; j++) {
+      const resolved = await Promise.all(promises)
+      let overload = false
+      for (let j = 0; j < resolved.length; j++) {
+        const result = resolved[j]
         const idx = toProcess[j].index
-        const seg = toProcess[j].seg
-        const corrected = correctedTexts[j] ?? seg.text
-        out[idx] = corrected
-        await setResponseCache(
-          { RESPONSE_CACHE: c.env.RESPONSE_CACHE },
-          seg.audioHash,
-          seg.mode,
-          corrected,
-          seg.glossary
-        )
+        if (!result.ok) {
+          const message = result.error instanceof Error ? result.error.message : String(result.error)
+          if (message.includes('queue_overloaded')) {
+            overload = true
+          } else {
+            console.warn('[correct] segment failed', { audioHash: result.seg.audioHash, message })
+          }
+          continue
+        }
+        routerOutputs.set(idx, result.text ?? result.seg.text)
+      }
+      if (routerOutputs.size) provider = 'router'
+      if (overload && !routerOutputs.size) {
+        return c.json({ error: 'queue_overloaded', retryAfterSeconds: 2 }, 429)
       }
     }
 
-    // Merge cached
-    for (const it of cachedResults) {
-      out[it.index] = it.corrected
+    const cacheWrites: Promise<void>[] = []
+    const results = segments.map((seg, index) => {
+      const cacheHit = cacheHits.get(index)
+      const routed = routerOutputs.get(index)
+      const candidate = cacheHit?.text ?? routed ?? seg.text
+      const report = evaluateFaithfulness(seg.text, candidate, {
+        minSharedRatio: seg.mode === 'enhanced' ? 0.92 : 0.88,
+      })
+
+      let finalText = report.accepted ? candidate : seg.text
+      const cameFromRouter = routerOutputs.has(index)
+      const cameFromCache = Boolean(cacheHit)
+
+      if (report.accepted && cameFromRouter && !cameFromCache) {
+        cacheWrites.push(
+          setResponseCache(
+            { RESPONSE_CACHE: c.env.RESPONSE_CACHE },
+            seg.audioHash,
+            seg.mode,
+            finalText,
+            seg.glossary
+          )
+        )
+      }
+
+      const confidenceBase = seg.mode === 'enhanced' ? 0.85 : 0.8
+      const confidence = report.accepted ? confidenceBase : Math.min(confidenceBase, 0.4)
+      const providerLabel = cameFromCache
+        ? cacheHit?.provider ?? 'cache'
+        : cameFromRouter
+          ? provider
+          : provider
+
+      return {
+        audioHash: seg.audioHash,
+        corrected: finalText,
+        confidence,
+        provider: providerLabel,
+        cached: report.accepted ? cameFromCache : false,
+        faithfulness: report,
+      }
+    })
+
+    if (cacheWrites.length) {
+      await Promise.all(cacheWrites)
     }
 
-    const results = out.map((text, i) => ({
-      audioHash: segments[i].audioHash,
-      corrected: text ?? segments[i].text,
-      confidence: segments[i].mode === 'enhanced' ? 0.85 : 0.8,
-      provider:
-        out[i] === segments[i].text
-          ? provider
-          : (cachedResults.find((r) => r.index === i)?.provider ?? provider),
-      cached: Boolean(cachedResults.find((r) => r.index === i)),
-    }))
-
     const resp: BatchCorrectionResponse = {
-      provider: toProcess.length && cachedResults.length ? 'mixed' : provider,
+      provider: toProcess.length && cacheHits.size ? 'mixed' : provider,
       results,
     }
     console.log('[correct] response', { provider: resp.provider, count: results.length })

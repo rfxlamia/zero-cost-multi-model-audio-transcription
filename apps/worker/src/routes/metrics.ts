@@ -27,6 +27,7 @@ const CACHE_TTL = 60_000 // 1 minute
 const getQueueStats = getBatchQueueStats
 
 metrics.get('/api/metrics', async (c) => {
+  const fresh = c.req.query('fresh')
   // Rate limit
   const ip =
     c.req.header('cf-connecting-ip') ||
@@ -39,7 +40,9 @@ metrics.get('/api/metrics', async (c) => {
 
   // Cache check
   const now = Date.now()
-  if (metricsCache && now - metricsCache.timestamp < CACHE_TTL) {
+  if (fresh === '1') {
+    metricsCache = null
+  } else if (metricsCache && now - metricsCache.timestamp < CACHE_TTL) {
     return c.json(metricsCache.data)
   }
 

@@ -1,0 +1,27 @@
+config:
+  target: "{{ $processEnvironment.WORKER_URL || 'http://localhost:8787' }}"
+  phases:
+    - name: warmup
+      duration: 15
+      arrivalRate: 5
+    - name: baseline
+      duration: 30
+      arrivalRate: 10
+    - name: spike
+      duration: 30
+      arrivalRate: 20
+    - name: sustained
+      duration: 30
+      arrivalRate: 10
+    - name: cooldown
+      pause: 15
+  ensure:
+    maxErrorRate: 1
+scenarios:
+  - name: health-check
+    flow:
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: 200
+            - match: "\"ok\":true"

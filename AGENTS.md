@@ -1,47 +1,24 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-
-- apps/web: Next.js App Router (TypeScript, Tailwind). UI, recorder/uploader, SSE client.
-- apps/worker: Cloudflare Worker (Hono). Orchestrator API, SSE, LLM router, quotas, cache.
-- packages/shared: Types (TranscriptionJob, TranscriptionChunk, ProviderUsage), constants, schema.sql.
-- Root: Turborepo, ESLint/Prettier, Husky + lint-staged, Commitlint, PNPM workspaces.
+This Turborepo houses three core workspaces: `apps/web` (Next.js App Router UI, recorder, SSE client), `apps/worker` (Cloudflare Worker with Hono, LLM routing, quotas), and `packages/shared` (types, constants, schema). Keep React features under `apps/web/src`, worker routes and services in `apps/worker/src`, and reusable logic in `packages/shared/src`. Store co-located tests as `*.test.ts` next to the source and mirror folder names when adding new features.
 
 ## Build, Test, and Development Commands
-
-- Install: `pnpm i` (Node >= 20).
-- Dev (all): `pnpm dev` (parallel). Web: `pnpm -F @transcriptorai/web dev`. Worker: `pnpm -F @transcriptorai/worker dev`.
-- Build: `pnpm build` atau `pnpm -F <pkg> build`.
-- Lint/Format: `pnpm lint`, `pnpm format`.
-- Test (worker): `pnpm -F @transcriptorai/worker test` (Vitest).
-
-## Architecture & Pipeline (MVP)
-
-- ASR: Workers AI (utama, 10 menit/hari) → fallback Transformers.js (browser) bila limit/online issue.
-- LLM Corrector: Fallback berurutan Groq → HuggingFace → Together → Cohere → Local.
-- Progressive enhancement: raw → quick → enhanced, streaming via SSE.
-- Smart batching: 5 segmen per panggilan LLM; hormati rate/kuota dan concurrency (≤5).
-- Caching: Cloudflare KV (response & community); R2 untuk audio; D1 untuk telemetry/usage.
-- Guardrails zero-cost: dedupe `audioHash`, preemptive switch saat kuota hampir habis.
+- `pnpm i`: install all workspace dependencies (Node 20+).
+- `pnpm dev`: run web and worker dev servers in parallel.
+- `pnpm -F @transcriptorai/web dev`: launch only the Next.js app; worker equivalent exists.
+- `pnpm build` / `pnpm -F <pkg> build`: produce production bundles.
+- `pnpm lint` and `pnpm format`: apply ESLint and Prettier rules.
+- `pnpm -F @transcriptorai/worker test`: execute Vitest suite for the worker API.
 
 ## Coding Style & Naming Conventions
-
-- TypeScript strict; React FC + hooks. Explicit return/boundary types (ESLint).
-- Prettier: 2 spasi, single quotes, no semicolons, width 100.
-- Penamaan: Types PascalCase (`TranscriptionJob`), constants UPPER_SNAKE (`BATCH_SIZE`), file kebab-case.
+TypeScript is strict and linted via ESLint; follow React function components and hooks. Prettier enforces 2-space indent, single quotes, no semicolons, and 100-character width. Use PascalCase for types (`TranscriptionJob`), camelCase for functions and variables, kebab-case for file names, and UPPER_SNAKE_CASE for constants.
 
 ## Testing Guidelines
-
-- Fokus worker: routing, SSE payload, fallback router, quota counters, cache hits (mock KV/R2/D1).
-- Penamaan: `src/**/*.test.ts`. Target p50 API <500ms (mock latencies).
+Worker logic uses Vitest; prioritize routing flows, SSE payloads, fallback chains, and quota counters with mocked KV/R2/D1 bindings. Name specs `src/**/*.test.ts` and keep them fast (<500ms median). Run tests before pushing and add regression cases for new cloud interactions or streaming states.
 
 ## Commit & Pull Request Guidelines
-
-- Conventional Commits (commitlint). Contoh: `feat(worker): add LLM fallback router`.
-- PR: jelaskan scope (web/worker/shared), link issue, screenshot UI (jika ada). Pastikan `pnpm lint` dan build hijau.
+Adopt Conventional Commits (e.g., `feat(worker): add llm fallback router`) to satisfy commitlint. Before opening a PR, ensure `pnpm lint` and relevant builds pass, link the tracking issue, and attach UI screenshots when web surfaces change. Summarize scope (`web/worker/shared`), highlight risk areas, and note any missing coverage.
 
 ## Security & Configuration Tips
-
-- Worker secrets: GROQ_API_KEY, HF_API_TOKEN, TOGETHER_API_KEY, COHERE_API_KEY, APP_SECRET.
-- Wrangler bindings: KV (COMMUNITY_CACHE, RESPONSE_CACHE, QUOTA_COUNTERS, JOB_STATE), R2_BUCKET, DB, AI.
-- Web env: `NEXT_PUBLIC_API_BASE`, `NEXT_PUBLIC_ENABLE_TRANSFORMERS`. CORS dari `ORIGIN_WHITELIST`.
+Manage secrets through Wrangler bindings: `GROQ_API_KEY`, `HF_API_TOKEN`, `TOGETHER_API_KEY`, `COHERE_API_KEY`, `APP_SECRET`, plus KV stores (`COMMUNITY_CACHE`, `RESPONSE_CACHE`, `QUOTA_COUNTERS`, `JOB_STATE`), `R2_BUCKET`, and `DB`. The web app reads `NEXT_PUBLIC_API_BASE` and `NEXT_PUBLIC_ENABLE_TRANSFORMERS`; align CORS with `ORIGIN_WHITELIST` when adding environments.

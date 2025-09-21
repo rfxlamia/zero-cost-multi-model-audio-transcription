@@ -13,6 +13,11 @@ export type CorrectionResult = {
   confidence: number
   provider: string
   cached: boolean
+  faithfulness: {
+    score: number
+    accepted: boolean
+    novelPhrases: string[]
+  }
 }
 
 export type BatchCorrectionResponse = {

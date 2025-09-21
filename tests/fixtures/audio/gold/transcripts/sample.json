@@ -1,0 +1,9 @@
+{
+  "id": "sample_clean_01",
+  "reference": "Halo dunia selamat datang di demo transkripsi canggih",
+  "candidates": {
+    "raw": "halo dunia selamat datang di demo transkipsi canggih",
+    "quick": "halo dunia selamat datang di demo transkripsi canggih",
+    "enhanced": "Halo dunia selamat datang di demo transkripsi canggih"
+  }
+}

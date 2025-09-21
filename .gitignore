@@ -18,3 +18,10 @@ pnpm-debug.log*
 critic.md
 prompt.md
 repo.txt
+
+# Test results and reports
+/reports/
+/test-results/
+
+# User attachments
+/file-attch/
