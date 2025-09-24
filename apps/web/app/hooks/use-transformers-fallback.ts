@@ -67,11 +67,13 @@ async function loadTransformersModule(): Promise<TransformersModule> {
   }
   const url =
     'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js'
-  await import(/* webpackIgnore: true */ url)
-  if (!window.transformers) {
+  const mod = await import(/* webpackIgnore: true */ url)
+  const resolved = (mod?.default ?? mod) as TransformersModule | undefined
+  if (!resolved || typeof resolved.pipeline !== 'function') {
     throw new Error('Transformers module gagal dimuat dari CDN')
   }
-  transformersModule = window.transformers
+  transformersModule = resolved
+  window.transformers = resolved
   return transformersModule
 }
 
