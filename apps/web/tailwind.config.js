@@ -1,6 +1,5 @@
-import type { Config } from 'tailwindcss'
-
-const config: Config = {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -10,7 +9,6 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Design System Colors from PRD
         primary: {
           50: '#eef2ff',
           100: '#e0e7ff',
@@ -18,7 +16,7 @@ const config: Config = {
           300: '#a5b4fc',
           400: '#818cf8',
           500: '#6366f1',
-          600: '#4f46e5', // Primary brand color
+          600: '#4f46e5',
           700: '#4338ca',
           800: '#3730a3',
           900: '#312e81',
@@ -31,7 +29,7 @@ const config: Config = {
           300: '#6ee7b7',
           400: '#34d399',
           500: '#10b981',
-          600: '#059669', // Success color
+          600: '#059669',
           700: '#047857',
           800: '#065f46',
           900: '#064e3b',
@@ -44,7 +42,7 @@ const config: Config = {
           300: '#fcd34d',
           400: '#fbbf24',
           500: '#f59e0b',
-          600: '#d97706', // Warning color
+          600: '#d97706',
           700: '#b45309',
           800: '#92400e',
           900: '#78350f',
@@ -57,13 +55,12 @@ const config: Config = {
           300: '#f9a8d4',
           400: '#f472b6',
           500: '#ec4899',
-          600: '#e11d48', // Error color
+          600: '#e11d48',
           700: '#be185d',
           800: '#9d174d',
           900: '#831843',
           950: '#500724',
         },
-        // Neutral colors (Zinc scale)
         neutral: {
           50: '#fafafa',
           100: '#f4f4f5',
@@ -106,30 +103,27 @@ const config: Config = {
         ],
       },
       fontSize: {
-        // Typography scale from PRD: 14/16/18/24/32px
         xs: ['0.75rem', { lineHeight: '1rem' }],
-        sm: ['0.875rem', { lineHeight: '1.25rem' }], // 14px
-        base: ['1rem', { lineHeight: '1.5rem' }], // 16px
-        lg: ['1.125rem', { lineHeight: '1.75rem' }], // 18px
+        sm: ['0.875rem', { lineHeight: '1.25rem' }],
+        base: ['1rem', { lineHeight: '1.5rem' }],
+        lg: ['1.125rem', { lineHeight: '1.75rem' }],
         xl: ['1.25rem', { lineHeight: '1.75rem' }],
-        '2xl': ['1.5rem', { lineHeight: '2rem' }], // 24px
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
         '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
-        '4xl': ['2rem', { lineHeight: '2.5rem' }], // 32px
+        '4xl': ['2rem', { lineHeight: '2.5rem' }],
         '5xl': ['3rem', { lineHeight: '1' }],
         '6xl': ['3.75rem', { lineHeight: '1' }],
       },
       spacing: {
-        // 4px grid spacing: 4, 8, 12, 16, 24, 32, 48
-        '1': '0.25rem', // 4px
-        '2': '0.5rem', // 8px
-        '3': '0.75rem', // 12px
-        '4': '1rem', // 16px
-        '6': '1.5rem', // 24px
-        '8': '2rem', // 32px
-        '12': '3rem', // 48px
+        1: '0.25rem',
+        2: '0.5rem',
+        3: '0.75rem',
+        4: '1rem',
+        6: '1.5rem',
+        8: '2rem',
+        12: '3rem',
       },
       screens: {
-        // Breakpoints from PRD: 640/768/1024/1280px
         sm: '640px',
         md: '768px',
         lg: '1024px',
@@ -190,13 +184,8 @@ const config: Config = {
     },
   },
   plugins: [
-    // Add form styles plugin for better input styling
     require('@tailwindcss/forms'),
-    // Add typography plugin for rich text content
     require('@tailwindcss/typography'),
-    // Add container queries plugin for responsive components
     require('@tailwindcss/container-queries'),
   ],
 }
-
-export default config
