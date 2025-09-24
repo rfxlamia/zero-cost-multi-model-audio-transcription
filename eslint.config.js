@@ -12,6 +12,9 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default [
+  {
+    ignores: ['.next/**', 'out/**', 'build/**', 'dist/**'],
+  },
   // Special config for Worker app
   {
     files: ['apps/worker/**/*.ts'],

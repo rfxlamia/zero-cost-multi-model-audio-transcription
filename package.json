@@ -28,7 +28,8 @@
     "qa:concurrency": "node scripts/concurrency-test.js",
     "qa:network": "node scripts/network-resilience-test.js",
     "qa:metrics": "node scripts/evaluate-accuracy.mjs",
-    "qa:all": "pnpm preflight && pnpm -w build && pnpm test && pnpm test:contract && pnpm test:integration && pnpm e2e && pnpm perf && pnpm qa:provider && pnpm qa:cache && pnpm qa:concurrency && pnpm qa:network && pnpm qa:metrics && pnpm lhci && pnpm scan:bundle"
+    "qa:all": "pnpm preflight && pnpm -w build && pnpm test && pnpm test:contract && pnpm test:integration && pnpm e2e && pnpm perf && pnpm qa:provider && pnpm qa:cache && pnpm qa:concurrency && pnpm qa:network && pnpm qa:metrics && pnpm lhci && pnpm scan:bundle",
+    "lint-staged": "lint-staged"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
@@ -46,10 +47,10 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^16.4.0",
-    "husky": "^9.1.6",
+    "husky": "^9.1.7",
     "k6": "^0.0.0",
     "license-checker": "^25.0.1",
-    "lint-staged": "^15.2.10",
+    "lint-staged": "^16.2.0",
     "miniflare": "^4.20250906.0",
     "msw": "^2.7.0",
     "prettier": "^3.3.3",
@@ -64,5 +65,14 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "type": "module"
+  "type": "module",
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{md,json,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
 }
