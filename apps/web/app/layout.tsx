@@ -10,6 +10,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }): ReactElement {
   return (
     <html lang="id">
+      <head>
+        <link
+          rel="preload"
+          as="image"
+          href="/hero-illustration.svg"
+          fetchPriority="high"
+          type="image/svg+xml"
+        />
+      </head>
       <body className="bg-white antialiased dark:bg-gray-900">{children}</body>
     </html>
   )

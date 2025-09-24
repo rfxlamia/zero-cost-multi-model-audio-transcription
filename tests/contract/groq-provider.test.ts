@@ -44,7 +44,7 @@ describe('Groq provider contract', () => {
     })
 
     const body = JSON.parse(String(init?.body ?? '{}'))
-    expect(body.model).toContain('llama-3.1')
+    expect(body.model).toBe('openai/gpt-oss-20b')
     expect(body.messages?.[1]?.content).toContain('kalimat pertama')
 
     expect(result).toEqual(['kalimat pertama', 'kalimat kedua'])

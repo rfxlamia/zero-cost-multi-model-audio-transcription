@@ -1,13 +1,15 @@
+const path = require('path')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // React strict mode for better development
   reactStrictMode: true,
 
-  // SWC minify for better performance
-  swcMinify: true,
-
   // Remove powered by header
   poweredByHeader: false,
+
+  // Ensure Next traces files from the monorepo root to avoid lockfile warnings
+  outputFileTracingRoot: path.join(__dirname, '../../'),
 
   // Environment variables
   env: {
@@ -18,6 +20,20 @@ const nextConfig = {
 
   // Basic security headers
   async headers() {
+    const connectSources = [
+      "'self'",
+      'http://localhost:8787',
+      'https://*.workers.dev',
+      'https://cdn.jsdelivr.net'
+    ]
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE
+    if (apiBase && !connectSources.includes(apiBase)) {
+      connectSources.push(apiBase)
+    }
+    const scriptSources = ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net']
+    if (process.env.NODE_ENV !== 'production') {
+      scriptSources.push("'unsafe-eval'")
+    }
     return [
       {
         source: '/(.*)',
@@ -34,11 +50,11 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+              `script-src ${scriptSources.join(' ')}`,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob:",
               "media-src 'self' blob:",
-              "connect-src 'self' http://localhost:8787 https://*.workers.dev",
+              `connect-src ${connectSources.join(' ')}`,
               "worker-src 'self' blob:",
             ].join('; '),
           },

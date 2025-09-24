@@ -126,7 +126,7 @@ async function main() {
   const metricsBefore = await fetchMetrics('before', 0, { fresh: true })
   const { data, elapsed } = await postCorrection(audioHashBase)
   await delay(600) // beri waktu update metrics
-  const metricsAfter = await fetchMetrics('after')
+  const metricsAfter = await fetchMetrics('after', 0, { fresh: true })
 
   const diff = detectProvider(metricsBefore, metricsAfter)
   console.log('   • waktu respons:', `${elapsed.toFixed(0)} ms`)

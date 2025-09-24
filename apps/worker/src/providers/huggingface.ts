@@ -2,8 +2,8 @@ import { buildIndonesianCorrectionPrompt, wrapBatchPrompt } from '../prompts'
 import type { ProviderCallOptions } from '../types'
 import { providerSemaphore } from '../utils/semaphore'
 
-const QUICK_MODEL = 'meta-llama/Llama-3.1-8B-Instruct'
-const ENHANCED_MODEL = 'meta-llama/Llama-3.1-70B-Instruct'
+const QUICK_MODEL = 'openai/gpt-oss-20b:nebius'
+const ENHANCED_MODEL = 'openai/gpt-oss-20b:nebius'
 
 export async function huggingfaceCorrectBatch(
   env: { HF_API_TOKEN?: string },

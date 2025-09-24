@@ -2,8 +2,8 @@ import { buildIndonesianCorrectionPrompt, wrapBatchPrompt } from '../prompts';
 import { providerSemaphore } from '../utils/semaphore';
 // import type { GroqChatCompletionResponse } from '../types/api-responses' // Type used internally by isGroqResponse
 import { isGroqResponse } from '../types/api-responses';
-const QUICK_MODEL = 'llama-3.1-8b-instant';
-const ENHANCED_MODEL = 'llama-3.1-70b-versatile';
+const QUICK_MODEL = 'openai/gpt-oss-20b';
+const ENHANCED_MODEL = 'openai/gpt-oss-20b';
 export async function groqCorrectBatch(env, texts, opts) {
     if (!env.GROQ_API_KEY)
         throw new Error('GROQ_API_KEY not set');

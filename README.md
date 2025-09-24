@@ -244,10 +244,25 @@ Our goal is to continuously improve the accuracy, speed, and feature set of Tran
 - **Metrics enrichment** – `/api/metrics` now exposes latency aggregates alongside quota and success data, enabling the dashboard to trend provider performance.
 - **Current blockers** – Repo still carries legacy ESLint/TypeScript violations (implicit `any`, missing return types) that need a dedicated lint cleanup pass.
 
+### Latest Session (Day 13–14 Summary)
+
+- **Landing UI rebuild** – Hero, CTA, and feature highlight sections were redesigned with minimal Tailwind utilities inspired by pulsemcp.com while keeping accessibility hooks (`TranscriptorAI` H1, CTA links) intact.
+- **Interactive shell polish** – Restored lazy-loaded recorder/upload panel with glassmorphism cards, SSE status badges, progress bars, and mock-aware logging so Playwright and manual QA share the same experience.
+- **Dashboard refresh** – Provider cards, queue list, and semaphore tiles now expose the seeded sample metrics in a responsive grid, keeping Playwright text assertions stable when the worker is offline.
+- **Fallback hardening** – Client hook now loads Transformers.js via CDN, respects same-origin checks before hitting `/api/transformers/fallback`, and recognises mocked EventSource for tests.
+- **Housekeeping** – Development CSP allows `'unsafe-eval'` (avoids hydration warnings), all E2E suites rerun successfully, and a fresh UI screenshot was captured for QA artifacts.
+- **Current blockers** – Need to wire a live worker endpoint (or documented mock) before production to avoid ECONNREFUSED logs in environments without port 8787.
+
 ### Upcoming (Day 11–12 Targets)
 
 - **Day 11 – Cascade & quota resilience** (`prd.md`, `prd.yaml`, `step.md`): stress provider fallback, simulate quota exhaustion, ensure pre-emptive switches, and capture recovery behaviour.
 - **Day 12 – Performance & caching**: profile API latency, tune batching flush timers and prompt compression, improve KV hit ratios, optimize frontend bundles, and surface metrics in the dashboard.
+
+### Upcoming (Day 15–16 Targets)
+
+- **Worker integration for deploy** – Stand up Cloudflare Worker in staging/Vercel, verify CORS + proxy flow, and document env var matrix for production rollout.
+- **UI perf & accessibility audit** – Capture Lighthouse/LHCI stats on the new layout, review focus and reduced-motion behaviour, and snapshot results in QA artifacts.
+- **Lint & typing cleanup** – Schedule pass to resolve outstanding ESLint/TypeScript warnings so CI can re-enable strict linting before release.
 
 ## Roadmap
 

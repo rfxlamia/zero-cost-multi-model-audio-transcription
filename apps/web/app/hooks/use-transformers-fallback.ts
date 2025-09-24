@@ -6,6 +6,12 @@ type Status = 'idle' | 'checking' | 'blocked' | 'ready' | 'loading' | 'error'
 
 type TransformersModule = typeof import('@xenova/transformers')
 
+declare global {
+  interface Window {
+    transformers?: TransformersModule
+  }
+}
+
 export interface FallbackSegment {
   start: number
   end: number
@@ -50,14 +56,30 @@ type ASRPipeline = (
 let pipelinePromise: Promise<ASRPipeline> | null = null
 let transformersModule: TransformersModule | null = null
 
-async function ensurePipeline(): Promise<ASRPipeline> {
+async function loadTransformersModule(): Promise<TransformersModule> {
+  if (transformersModule) return transformersModule
   if (typeof window === 'undefined') {
     throw new Error('Transformers fallback hanya berjalan di browser')
   }
+  if (window.transformers) {
+    transformersModule = window.transformers
+    return transformersModule
+  }
+  const url =
+    'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js'
+  await import(/* webpackIgnore: true */ url)
+  if (!window.transformers) {
+    throw new Error('Transformers module gagal dimuat dari CDN')
+  }
+  transformersModule = window.transformers
+  return transformersModule
+}
+
+async function ensurePipeline(): Promise<ASRPipeline> {
   if (!pipelinePromise) {
     pipelinePromise = (async (): Promise<ASRPipeline> => {
-      transformersModule = transformersModule ?? (await import('@xenova/transformers'))
-      const { pipeline } = transformersModule
+      const module = await loadTransformersModule()
+      const { pipeline } = module
       const p = (await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
         quantized: true,
       })) as unknown as ASRPipeline
@@ -189,14 +211,19 @@ export function useTransformersFallback(options: Options): UseTransformersFallba
       }
       if (allowed && apiBase) {
         try {
-          const res = await fetch(`${apiBase}/api/transformers/fallback`, { cache: 'no-store' })
-          if (!res.ok) {
-            allowed = false
-            const body = (await res.json().catch(() => null)) as { reason?: string } | null
-            reason = body?.reason || `Fallback diblokir oleh server (${String(res.status)})`
+          const target = new URL('/api/transformers/fallback', apiBase)
+          const sameOrigin = target.origin === window.location.origin
+          if (sameOrigin) {
+            const res = await fetch(target, { cache: 'no-store' })
+            if (!res.ok) {
+              allowed = false
+              const body = (await res.json().catch(() => null)) as { reason?: string } | null
+              reason = body?.reason || `Fallback diblokir oleh server (${String(res.status)})`
+            }
+          } else {
+            reason = 'Worker remote: lewati preflight'
           }
         } catch {
-          // if worker unreachable, still allow fallback but annotate reason
           reason = 'Tidak bisa menghubungi Worker, fallback lokal disiapkan'
         }
       }

@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { huggingfaceCorrectBatch } from '@worker/providers/huggingface'
 
-const MODEL = 'meta-llama/Llama-3.1-70B-Instruct'
+const MODEL = 'openai/gpt-oss-20b:nebius'
 const ENDPOINT = `https://api-inference.huggingface.co/models/${encodeURIComponent(MODEL)}`
 
 describe('HuggingFace provider contract', () => {
