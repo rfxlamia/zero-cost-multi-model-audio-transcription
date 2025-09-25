@@ -35,7 +35,13 @@ const nextConfig = {
     if (apiBase && !connectSources.includes(apiBase)) {
       connectSources.push(apiBase)
     }
-    const scriptSources = ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net']
+    const scriptSources = [
+      "'self'",
+      "'unsafe-inline'",
+      "'unsafe-eval'",
+      "'wasm-unsafe-eval'",
+      'https://cdn.jsdelivr.net',
+    ]
     const styleSources = ["'self'", "'unsafe-inline'"]
     if (process.env.NODE_ENV !== 'production') {
       scriptSources.push("'unsafe-eval'")
