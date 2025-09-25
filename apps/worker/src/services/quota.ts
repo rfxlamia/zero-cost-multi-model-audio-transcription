@@ -34,7 +34,12 @@ const minuteQuotaKey = (provider: string, minute: string) =>
   `QUOTA_COUNTERS:${provider}:minute:${minute}`
 
 async function readCounter(env: { QUOTA_COUNTERS: KV }, key: string) {
-  const raw = await env.QUOTA_COUNTERS.get(key, 'json')
+  let raw: unknown = null
+  try {
+    raw = await env.QUOTA_COUNTERS.get(key, 'json')
+  } catch (error) {
+    console.warn('[quota] kv read failed', { key, error: (error as Error).message })
+  }
   const used = raw && typeof (raw as any).used === 'number' ? (raw as any).used : 0
   const limit = raw && typeof (raw as any).limit === 'number' ? (raw as any).limit : undefined
   const resetAt = raw && typeof (raw as any).resetAt === 'string' ? (raw as any).resetAt : undefined
@@ -62,7 +67,11 @@ async function writeCounter(
       )
     ).toISOString(),
   }
-  await env.QUOTA_COUNTERS.put(key, JSON.stringify(doc), { expirationTtl: ttlSeconds })
+  try {
+    await env.QUOTA_COUNTERS.put(key, JSON.stringify(doc), { expirationTtl: ttlSeconds })
+  } catch (error) {
+    console.warn('[quota] kv write skipped', { key, error: (error as Error).message })
+  }
 }
 
 export async function hasQuota(

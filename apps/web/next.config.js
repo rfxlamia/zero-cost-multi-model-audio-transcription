@@ -25,6 +25,11 @@ const nextConfig = {
       'http://localhost:8787',
       'https://*.workers.dev',
       'https://cdn.jsdelivr.net',
+      'https://huggingface.co',
+      'https://*.huggingface.co',
+      'https://*.hf.co',
+      'https://cas-bridge.xethub.hf.co',
+      'https://cdn-lfs.huggingface.co',
     ]
     const apiBase = process.env.NEXT_PUBLIC_API_BASE
     if (apiBase && !connectSources.includes(apiBase)) {

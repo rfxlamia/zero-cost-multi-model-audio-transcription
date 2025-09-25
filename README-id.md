@@ -216,9 +216,17 @@ Proyek ini adalah monorepo yang dikelola oleh pnpm dan Turborepo.
 - `packages/shared`: Tipe, skema, dan konstanta bersama yang digunakan oleh aplikasi web dan worker.
 - `packages/ui`: (Jika ada) Komponen React bersama.
 
+## Status Deploy & QA
+
+- **Web produksi**: [https://zerotransc.vercel.app/](https://zerotransc.vercel.app/) (Vercel, Next.js App Router).
+- **Worker API**: [https://transcript-orchestrator.hithere-vvv.workers.dev](https://transcript-orchestrator.hithere-vvv.workers.dev) mengorkestrasi ASR dan fallback LLM multi-provider.
+- **QA otomatis**: `pnpm qa:all` (2025-09-24) lulus suite Playwright end-to-end dan Lighthouse 12.1.0 dengan skor 100 untuk Performance, Accessibility, Best Practices, dan SEO (lihat `resultlhci.json`).
+- **Artefak**: Screenshot landing dan quota dashboard terbaru tersimpan di `screenshots/image-1920x2517.png` dan `screenshots/image-1920x1402.png`.
+- **Isu diketahui**: Dashboard kuota belum bisa memuat metrik dari worker dan perekam browser berhenti setelah beberapa detik; investigasi difokuskan pada binding telemetri worker dan mekanisme keep-alive MediaRecorder.
+
 ## Peta Jalan (Roadmap)
 
-Tujuan kami adalah untuk terus meningkatkan akurasi, kecepatan, dan rangkaian fitur TranscriptorAI sambil tetap berpegang pada filosofi "benar-benar gratis".
+MVP sudah live di Vercel; fokus roadmap bergeser ke keandalan produksi, telemetri, dan integrasi provider berikutnya.
 
 ### Minggu 1-2 (Core MVP)
 
@@ -237,31 +245,28 @@ Tujuan kami adalah untuk terus meningkatkan akurasi, kecepatan, dan rangkaian fi
 - [x] Format Ekspor Tambahan (TXT/SRT/VTT/JSON)
 - [ ] Sistem Glosarium untuk istilah spesifik domain
 
+### Pasca-Deploy (Day 15–16)
+
+- **Peluncuran produksi** – Web dipublikasikan di `https://zerotransc.vercel.app/` dengan orkestrator Cloudflare Worker di `https://transcript-orchestrator.hithere-vvv.workers.dev`.
+- **QA otomatis** – `pnpm qa:all` lulus suite Playwright serta Lighthouse 12.1.0 dengan skor 100/100/100/100 (tersimpan di `resultlhci.json`).
+- **QA visual** – Screenshot landing dan dashboard terbaru diarsipkan di folder `screenshots/`.
+- **Isu terbuka** – Feed metrik dashboard kuota dan kestabilan perekam browser masih perlu diperbaiki.
+
+### Fokus Berikutnya
+
+- [ ] Pulihkan metrik langsung pada dashboard kuota dengan menghubungkan counter/secrets worker ke `/api/metrics`.
+- [ ] Stabilkan perekaman browser agar MediaRecorder tetap berjalan lebih dari beberapa detik (koordinasi keep-alive/SSE).
+- [ ] Integrasikan Together AI dan Cohere di produksi setelah kunci tersedia dan tracking kuota tervalidasi.
+- [ ] Rilis UX manajemen glosarium beserta heuristik cache yang lebih cerdas.
+
 ### Masa Depan
 
+- [ ] Pindahkan koreksi latar ke Cloudflare Queues untuk pemrosesan asinkron.
+- [ ] Otomatiskan regresi akurasi penyedia dengan fixture audio emas dan contract test.
 - [ ] Diarisasi Pembicara
 - [ ] Berbagi Koreksi P2P (WebRTC)
 - [ ] API untuk Developer
 - [ ] Dokumentasi Self-hosting
-
-### Ringkasan Terbaru (Day 9–10)
-
-- **Pipeline ekspor diperketat** – Menambahkan utilitas bersama dengan toleransi waktu ±0,5 detik dan penggabungan jeda, merombak rute ekspor worker, serta memperluas pengujian untuk output TXT/SRT/VTT/JSON.
-- **Fallback Transformers.js** – Membuat hook klien untuk memuat `@xenova/transformers@^2.17.2` secara malas, memeriksa memori perangkat dan izin dari worker, lalu memasukkan hasil ASR lokal ke tampilan transkrip dengan tombol preload dan status yang jelas.
-- **Pengujian & debugging** – Menjalankan `pnpm exec vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1 --reporter=verbose` agar stabil di sandbox; menyesuaikan versi dependensi dengan rilis terbaru Transformers.js dan mendokumentasikan instalasi manual ketika DNS sandbox memblokir npm.
-- **Hambatan tersisa** – Tidak ada hambatan fungsional; telemetri penggunaan fallback masih lokal dan bisa ditingkatkan di tahap berikutnya.
-
-### Ringkasan Terbaru (Day 11–12)
-
-- **Ketahanan fallback & kuota** – Menambahkan uji regresi yang mensimulasikan kehabisan kuota Groq/HF serta memastikan switch pre-emptive di router berjalan mulus.
-- **Optimasi batching** – Interval flush berbeda untuk mode quick/enhanced, penjadwalan flush ulang, serta pencatatan latensi setiap provider ke Cloudflare KV.
-- **Penyayaan metrik** – Endpoint `/api/metrics` kini menampilkan agregasi latensi selain data kuota/sukses sehingga dashboard dapat memantau performa provider.
-- **Hambatan tersisa** – Masih terdapat warisan pelanggaran ESLint/TypeScript (implicit `any`, return type hilang) yang memerlukan sesi cleanup terpisah.
-
-### Target Berikutnya (Day 11–12)
-
-- **Day 11 – Ketahanan fallback & kuota** (`prd.md`, `prd.yaml`, `step.md`): uji stres router penyedia, simulasi kehabisan kuota, pastikan switch pre-emptive, dan dokumentasikan perilaku pemulihan.
-- **Day 12 – Performa & caching**: profil latensi API, sesuaikan jeda flush batching dan kompresi prompt, tingkatkan rasio hit KV, optimalkan bundel frontend, dan munculkan metrik di dashboard.
 
 ## Berkontribusi
 

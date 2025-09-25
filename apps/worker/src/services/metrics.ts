@@ -25,8 +25,33 @@ const metricsKey = (
   day: string
 ): string => `METRICS:${kind}:${provider}:day:${day}`
 
+async function readJson<T extends Record<string, unknown> | null>(
+  env: { QUOTA_COUNTERS: KV },
+  key: string
+): Promise<T | null> {
+  try {
+    return (await env.QUOTA_COUNTERS.get(key, 'json')) as T | null
+  } catch (error) {
+    console.warn('[metrics] kv read failed', { key, error: (error as Error).message })
+    return null
+  }
+}
+
+async function writeJson(
+  env: { QUOTA_COUNTERS: KV },
+  key: string,
+  value: Record<string, unknown>,
+  options: Parameters<KV['put']>[2]
+) {
+  try {
+    await env.QUOTA_COUNTERS.put(key, JSON.stringify(value), options)
+  } catch (error) {
+    console.warn('[metrics] kv write skipped', { key, error: (error as Error).message })
+  }
+}
+
 async function readCount(env: { QUOTA_COUNTERS: KV }, key: string): Promise<number> {
-  const raw = (await env.QUOTA_COUNTERS.get(key, 'json')) as MetricsData | null
+  const raw = await readJson<MetricsData | null>(env, key)
   return raw && typeof raw.used === 'number' ? raw.used : 0
 }
 
@@ -37,9 +62,7 @@ export async function incProviderSuccess(
 ): Promise<void> {
   const k = metricsKey('success', provider, dayKey())
   const used = await readCount(env, k)
-  await env.QUOTA_COUNTERS.put(k, JSON.stringify({ used: used + delta }), {
-    expirationTtl: 3 * 24 * 60 * 60,
-  })
+  await writeJson(env, k, { used: used + delta }, { expirationTtl: 3 * 24 * 60 * 60 })
 }
 
 export async function incProviderFailure(
@@ -49,9 +72,7 @@ export async function incProviderFailure(
 ): Promise<void> {
   const k = metricsKey('failure', provider, dayKey())
   const used = await readCount(env, k)
-  await env.QUOTA_COUNTERS.put(k, JSON.stringify({ used: used + delta }), {
-    expirationTtl: 3 * 24 * 60 * 60,
-  })
+  await writeJson(env, k, { used: used + delta }, { expirationTtl: 3 * 24 * 60 * 60 })
 }
 
 export async function getProviderDailyMetrics(
@@ -72,7 +93,7 @@ export async function recordProviderLatency(
   ms: number
 ): Promise<void> {
   const k = metricsKey('latency', provider, dayKey())
-  const raw = (await env.QUOTA_COUNTERS.get(k, 'json')) as LatencyData | null
+  const raw = await readJson<LatencyData | null>(env, k)
   const sum = typeof raw?.sum === 'number' ? raw.sum : 0
   const count = typeof raw?.count === 'number' ? raw.count : 0
   const min = typeof raw?.min === 'number' ? raw.min : ms
@@ -83,7 +104,7 @@ export async function recordProviderLatency(
     min: Math.min(min, ms),
     max: Math.max(max, ms),
   }
-  await env.QUOTA_COUNTERS.put(k, JSON.stringify(next), { expirationTtl: 3 * 24 * 60 * 60 })
+  await writeJson(env, k, next, { expirationTtl: 3 * 24 * 60 * 60 })
 }
 
 export async function getProviderLatency(
@@ -91,7 +112,7 @@ export async function getProviderLatency(
   provider: string
 ): Promise<{ averageMs: number; count: number; minMs: number; maxMs: number }> {
   const k = metricsKey('latency', provider, dayKey())
-  const raw = (await env.QUOTA_COUNTERS.get(k, 'json')) as LatencyData | null
+  const raw = await readJson<LatencyData | null>(env, k)
   const sum = typeof raw?.sum === 'number' ? raw.sum : 0
   const count = typeof raw?.count === 'number' ? raw.count : 0
   const average = count > 0 ? sum / count : 0

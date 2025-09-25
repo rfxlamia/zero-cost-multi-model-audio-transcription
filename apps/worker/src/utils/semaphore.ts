@@ -3,6 +3,10 @@ export class Semaphore {
   private active = 0
   constructor(private readonly limit: number) {}
 
+  getLimit() {
+    return this.limit
+  }
+
   async acquire() {
     if (this.active < this.limit) {
       this.active++

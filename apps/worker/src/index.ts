@@ -30,6 +30,8 @@ export type Env = {
   DISABLE_TRANSFORMERS?: string | boolean
   APP_SECRET?: string
   TURNSTILE_SECRET?: string
+  TOGETHER_API_KEY?: string
+  COHERE_API_KEY?: string
 }
 
 const app = new Hono<{ Bindings: Env }>()

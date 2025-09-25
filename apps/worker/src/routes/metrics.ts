@@ -46,15 +46,47 @@ metrics.get('/api/metrics', async (c) => {
     return c.json(metricsCache.data)
   }
 
-  const providers = ['groq', 'huggingface', 'together', 'cohere']
-  const stats: Record<string, any> = {}
+  const providers = ['groq', 'huggingface', 'together', 'cohere'] as const
+  type ProviderStats = {
+    enabled: boolean
+    nearLimit: boolean
+    daily: { day: string; success: number; failure: number; successRate: number }
+    latency: { averageMs: number; count: number; minMs: number; maxMs: number }
+  }
+  const stats: Record<string, ProviderStats> = {}
   for (const p of providers) {
-    const daily = await getProviderDailyMetrics({ QUOTA_COUNTERS: c.env.QUOTA_COUNTERS }, p)
-    const latency = await getProviderLatency({ QUOTA_COUNTERS: c.env.QUOTA_COUNTERS }, p)
-    const nearLimit = await preemptiveSwitch(
-      { QUOTA_COUNTERS: c.env.QUOTA_COUNTERS } as any,
-      p as any
-    )
+    const fallbackDaily = { day: '', success: 0, failure: 0, successRate: 1 }
+    const fallbackLatency = { averageMs: 0, count: 0, minMs: 0, maxMs: 0 }
+    let daily = fallbackDaily
+    let latency = fallbackLatency
+    let nearLimit = false
+    try {
+      daily = await getProviderDailyMetrics({ QUOTA_COUNTERS: c.env.QUOTA_COUNTERS }, p)
+    } catch (error) {
+      console.warn('[metrics] daily lookup failed', {
+        provider: p,
+        error: (error as Error).message,
+      })
+    }
+    try {
+      latency = await getProviderLatency({ QUOTA_COUNTERS: c.env.QUOTA_COUNTERS }, p)
+    } catch (error) {
+      console.warn('[metrics] latency lookup failed', {
+        provider: p,
+        error: (error as Error).message,
+      })
+    }
+    if (p === 'groq' || p === 'huggingface' || p === 'cohere') {
+      try {
+        nearLimit = await preemptiveSwitch({ QUOTA_COUNTERS: c.env.QUOTA_COUNTERS }, p)
+      } catch (error) {
+        console.warn('[metrics] near-limit check failed', {
+          provider: p,
+          error: (error as Error).message,
+        })
+        nearLimit = false
+      }
+    }
     const enabled =
       (p === 'groq' &&
         !!c.env.GROQ_API_KEY &&
@@ -62,14 +94,14 @@ metrics.get('/api/metrics', async (c) => {
       (p === 'huggingface' &&
         !!c.env.HF_API_TOKEN &&
         !(c.env.DISABLE_HF === '1' || c.env.DISABLE_HF === true)) ||
-      (p === 'together' && !!(c.env as any).TOGETHER_API_KEY) ||
-      (p === 'cohere' && !!(c.env as any).COHERE_API_KEY)
+      (p === 'together' && !!c.env.TOGETHER_API_KEY) ||
+      (p === 'cohere' && !!c.env.COHERE_API_KEY)
     stats[p] = { enabled, nearLimit, daily, latency }
   }
 
   const semaphores = {
-    providerConcurrency: (providerSemaphore as any)?.limit ?? 5,
-    kvConcurrency: (kvSemaphore as any)?.limit ?? 5,
+    providerConcurrency: providerSemaphore.getLimit(),
+    kvConcurrency: kvSemaphore.getLimit(),
   }
 
   const queue = getQueueStats()

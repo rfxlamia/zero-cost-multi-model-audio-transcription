@@ -131,7 +131,12 @@ async function applyRateLimits(env: Env, configs: LimitConfig[]) {
 
   for (const cfg of configs) {
     const key = `RL:${cfg.scope}:${cfg.windowSeconds}:${cfg.identifier}`
-    const raw = await env.QUOTA_COUNTERS.get(key, 'json')
+    let raw: unknown = null
+    try {
+      raw = await env.QUOTA_COUNTERS.get(key, 'json')
+    } catch (error) {
+      console.warn('[rate-limit] kv read failed', { key, error: (error as Error).message })
+    }
     let used = 0
     let resetAt = now + cfg.windowSeconds * 1000
 
@@ -170,16 +175,23 @@ async function applyRateLimits(env: Env, configs: LimitConfig[]) {
   const metas: RateLimitMeta[] = []
   for (const state of states) {
     const ttlSeconds = Math.max(60, Math.ceil((state.resetAt - now) / 1000))
-    await env.QUOTA_COUNTERS.put(
-      state.key,
-      JSON.stringify({
-        scope: state.scope,
-        used: state.nextCount,
-        limit: state.limit,
-        resetAt: new Date(state.resetAt).toISOString(),
-      }),
-      { expirationTtl: ttlSeconds }
-    )
+    try {
+      await env.QUOTA_COUNTERS.put(
+        state.key,
+        JSON.stringify({
+          scope: state.scope,
+          used: state.nextCount,
+          limit: state.limit,
+          resetAt: new Date(state.resetAt).toISOString(),
+        }),
+        { expirationTtl: ttlSeconds }
+      )
+    } catch (error) {
+      console.warn('[rate-limit] kv write skipped', {
+        key: state.key,
+        error: (error as Error).message,
+      })
+    }
     metas.push({
       scope: state.scope,
       limit: state.limit,
@@ -228,6 +240,10 @@ export const securityMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c
     return
   }
 
+  const url = new URL(c.req.url)
+  const path = url.pathname
+  const isMetricsRead = c.req.method === 'GET' && path === '/api/metrics'
+
   const { userId } = await ensureAnonId(c)
   c.set('anonUserId', userId)
 
@@ -237,38 +253,40 @@ export const securityMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c
   const ipHash = await sha256Hex(clientIp)
 
   const configs: LimitConfig[] = []
-  const { IP, USER } = RATE_LIMITS
-  if (IP.HOUR_MAX > 0) {
-    configs.push({
-      scope: 'ip',
-      identifier: `${IP.HOUR_WINDOW_SEC}:${ipHash}`,
-      windowSeconds: IP.HOUR_WINDOW_SEC,
-      max: IP.HOUR_MAX,
-    })
-  }
-  if (IP.DAY_MAX > 0) {
-    configs.push({
-      scope: 'ip',
-      identifier: `${IP.DAY_WINDOW_SEC}:${ipHash}`,
-      windowSeconds: IP.DAY_WINDOW_SEC,
-      max: IP.DAY_MAX,
-    })
-  }
-  if (USER.HOUR_MAX > 0) {
-    configs.push({
-      scope: 'user',
-      identifier: `${USER.HOUR_WINDOW_SEC}:${userId}`,
-      windowSeconds: USER.HOUR_WINDOW_SEC,
-      max: USER.HOUR_MAX,
-    })
-  }
-  if (USER.DAY_MAX > 0) {
-    configs.push({
-      scope: 'user',
-      identifier: `${USER.DAY_WINDOW_SEC}:${userId}`,
-      windowSeconds: USER.DAY_WINDOW_SEC,
-      max: USER.DAY_MAX,
-    })
+  if (!isMetricsRead) {
+    const { IP, USER } = RATE_LIMITS
+    if (IP.HOUR_MAX > 0) {
+      configs.push({
+        scope: 'ip',
+        identifier: `${IP.HOUR_WINDOW_SEC}:${ipHash}`,
+        windowSeconds: IP.HOUR_WINDOW_SEC,
+        max: IP.HOUR_MAX,
+      })
+    }
+    if (IP.DAY_MAX > 0) {
+      configs.push({
+        scope: 'ip',
+        identifier: `${IP.DAY_WINDOW_SEC}:${ipHash}`,
+        windowSeconds: IP.DAY_WINDOW_SEC,
+        max: IP.DAY_MAX,
+      })
+    }
+    if (USER.HOUR_MAX > 0) {
+      configs.push({
+        scope: 'user',
+        identifier: `${USER.HOUR_WINDOW_SEC}:${userId}`,
+        windowSeconds: USER.HOUR_WINDOW_SEC,
+        max: USER.HOUR_MAX,
+      })
+    }
+    if (USER.DAY_MAX > 0) {
+      configs.push({
+        scope: 'user',
+        identifier: `${USER.DAY_WINDOW_SEC}:${userId}`,
+        windowSeconds: USER.DAY_WINDOW_SEC,
+        max: USER.DAY_MAX,
+      })
+    }
   }
 
   const result = await applyRateLimits(c.env, configs)

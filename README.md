@@ -202,9 +202,17 @@ The project is a monorepo managed by pnpm and Turborepo.
 - `packages/shared`: Shared types, schemas, and constants used by both the web and worker apps.
 - `packages/ui`: (If it exists) Shared React components.
 
+## Deployment & QA Status
+
+- **Production web**: [https://zerotransc.vercel.app/](https://zerotransc.vercel.app/) (Vercel, Next.js App Router).
+- **Worker API**: [https://transcript-orchestrator.hithere-vvv.workers.dev](https://transcript-orchestrator.hithere-vvv.workers.dev) orchestrates ASR and multi-provider LLM fallbacks.
+- **Automated QA**: `pnpm qa:all` (2025-09-24) passes Playwright end-to-end suites and Lighthouse 12.1.0 with perfect 100 scores across Performance, Accessibility, Best Practices, and SEO (see `resultlhci.json`).
+- **Artifacts**: Latest landing and quota dashboard captures live at `screenshots/image-1920x2517.png` and `screenshots/image-1920x1402.png`.
+- **Known issues**: Quota dashboard cannot yet retrieve live metrics from the worker, and the browser recorder stops after a few seconds; investigations focus on worker telemetry bindings and MediaRecorder keep-alive handling.
+
 ## Roadmap
 
-Our goal is to continuously improve the accuracy, speed, and feature set of TranscriptorAI while adhering to the "truly free" philosophy.
+The MVP is now live on Vercel, and the roadmap focuses on production reliability, telemetry, and the next wave of provider integrations.
 
 ### Week 1-2 (Core MVP)
 
@@ -223,52 +231,28 @@ Our goal is to continuously improve the accuracy, speed, and feature set of Tran
 - [x] Additional Export Formats (TXT/SRT/VTT/JSON)
 - [ ] Glossary System for domain-specific terms
 
+### Post-Deploy (Day 15–16)
+
+- **Production launch** – Web app deployed to Vercel at `https://zerotransc.vercel.app/` with Cloudflare Worker orchestrator at `https://transcript-orchestrator.hithere-vvv.workers.dev`.
+- **QA automation** – `pnpm qa:all` passes Playwright E2E suites and Lighthouse 12.1.0 with perfect 100/100/100/100 category scores (captured in `resultlhci.json`).
+- **Visual QA** – Fresh landing and quota dashboard screenshots stored in `screenshots/` for release notes.
+- **Open issues** – Quota dashboard metrics feed and long-running browser recordings require follow-up fixes.
+
+### Next Focus
+
+- [ ] Restore live metrics in the quota dashboard by wiring worker counters/secrets to `/api/metrics`.
+- [ ] Stabilize the browser recorder so MediaRecorder chunks stream past the first few seconds (keep-alive/SSE coordination).
+- [ ] Integrate Together AI and Cohere in production once secrets are provisioned and quota tracking is verified.
+- [ ] Ship glossary management UX alongside smarter cache heuristics.
+
 ### Future
 
+- [ ] Shift background corrections to Cloudflare Queues for asynchronous processing.
+- [ ] Automate provider accuracy regression checks with gold audio fixtures and contract tests.
 - [ ] Speaker Diarization
 - [ ] P2P Correction Sharing (WebRTC)
 - [ ] Developer API
 - [ ] Self-hosting Documentation
-
-### Latest Session (Day 9–10 Summary)
-
-- **Export pipeline hardened** – Added shared helpers with ±0.5 s timestamp tolerance and gap merging, refactored the worker export route, and expanded tests for TXT/SRT/VTT/JSON outputs.
-- **Transformers.js fallback** – Created a client hook to lazily load `@xenova/transformers@^2.17.2`, gate by device memory and server availability, and feed local ASR results into the transcript UI with preload controls and clear status messaging.
-- **Testing & debugging** – Executed `pnpm exec vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1 --reporter=verbose` for deterministic sandbox runs; resolved dependency issues by aligning to the latest published Transformers.js release and documenting manual installs when DNS blocks npm.
-- **Current blockers** – None functionally; optional telemetry for fallback usage remains a future enhancement.
-
-### Latest Session (Day 11–12 Summary)
-
-- **Provider cascade safeguards** – Added regression tests covering quota exhaustion and pre-emptive switching so the router consistently falls back when Groq/HF limits are reached.
-- **Batching optimizations** – Mode-aware flush timers (quick vs enhanced), background flush scheduling, and latency telemetry recorded per provider to Cloudflare KV.
-- **Metrics enrichment** – `/api/metrics` now exposes latency aggregates alongside quota and success data, enabling the dashboard to trend provider performance.
-- **Current blockers** – Repo still carries legacy ESLint/TypeScript violations (implicit `any`, missing return types) that need a dedicated lint cleanup pass.
-
-### Latest Session (Day 13–14 Summary)
-
-- **Landing UI rebuild** – Hero, CTA, and feature highlight sections were redesigned with minimal Tailwind utilities inspired by pulsemcp.com while keeping accessibility hooks (`TranscriptorAI` H1, CTA links) intact.
-- **Interactive shell polish** – Restored lazy-loaded recorder/upload panel with glassmorphism cards, SSE status badges, progress bars, and mock-aware logging so Playwright and manual QA share the same experience.
-- **Dashboard refresh** – Provider cards, queue list, and semaphore tiles now expose the seeded sample metrics in a responsive grid, keeping Playwright text assertions stable when the worker is offline.
-- **Fallback hardening** – Client hook now loads Transformers.js via CDN, respects same-origin checks before hitting `/api/transformers/fallback`, and recognises mocked EventSource for tests.
-- **Housekeeping** – Development CSP allows `'unsafe-eval'` (avoids hydration warnings), all E2E suites rerun successfully, and a fresh UI screenshot was captured for QA artifacts.
-- **Current blockers** – Need to wire a live worker endpoint (or documented mock) before production to avoid ECONNREFUSED logs in environments without port 8787.
-
-### Upcoming (Day 11–12 Targets)
-
-- **Day 11 – Cascade & quota resilience** (`prd.md`, `prd.yaml`, `step.md`): stress provider fallback, simulate quota exhaustion, ensure pre-emptive switches, and capture recovery behaviour.
-- **Day 12 – Performance & caching**: profile API latency, tune batching flush timers and prompt compression, improve KV hit ratios, optimize frontend bundles, and surface metrics in the dashboard.
-
-### Upcoming (Day 15–16 Targets)
-
-- **Worker integration for deploy** – Stand up Cloudflare Worker in staging/Vercel, verify CORS + proxy flow, and document env var matrix for production rollout.
-- **UI perf & accessibility audit** – Capture Lighthouse/LHCI stats on the new layout, review focus and reduced-motion behaviour, and snapshot results in QA artifacts.
-- **Lint & typing cleanup** – Schedule pass to resolve outstanding ESLint/TypeScript warnings so CI can re-enable strict linting before release.
-
-## Roadmap
-
-- **Short term (pre-MVP deploy):** Stabilize synchronous correction path with stronger caching and lightweight queue limits so `pnpm qa:all` and deployment smoke tests run tanpa timeout.
-- **Post-MVP async refactor:** Migrasikan batch koreksi ke pola Cloudflare Queues (POST ➜ 202 + `jobId`, consumer Worker mengolah provider secara background, endpoint status memantau KV) untuk menghilangkan request panjang dan memberikan skalabilitas tinggi.
-- **Provider & QA expansion:** Integrasi Together/Cohere, perluasan contract test per provider, dan otomatisasi evaluasi akurasi berbasis gold audio di pipeline CI.
 
 ## Contributing
 

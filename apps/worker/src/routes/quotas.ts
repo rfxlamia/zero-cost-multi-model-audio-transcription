@@ -33,8 +33,21 @@ quotas.get('/api/quotas', async (c) => {
 
   const out: Record<string, any> = {}
   for (const p of providers) {
-    const dayRaw = await c.env.QUOTA_COUNTERS.get(`QUOTA_COUNTERS:${p}:day:${day}`, 'json')
-    const minRaw = await c.env.QUOTA_COUNTERS.get(`QUOTA_COUNTERS:${p}:minute:${minute}`, 'json')
+    let dayRaw: unknown = null
+    let minRaw: unknown = null
+    try {
+      dayRaw = await c.env.QUOTA_COUNTERS.get(`QUOTA_COUNTERS:${p}:day:${day}`, 'json')
+    } catch (error) {
+      console.warn('[quotas] day lookup failed', { provider: p, error: (error as Error).message })
+    }
+    try {
+      minRaw = await c.env.QUOTA_COUNTERS.get(`QUOTA_COUNTERS:${p}:minute:${minute}`, 'json')
+    } catch (error) {
+      console.warn('[quotas] minute lookup failed', {
+        provider: p,
+        error: (error as Error).message,
+      })
+    }
     out[p] = {
       day: dayRaw && typeof dayRaw === 'object' ? dayRaw : { used: 0, limit: null, resetAt: null },
       minute:

@@ -56,6 +56,19 @@ type ASRPipeline = (
 let pipelinePromise: Promise<ASRPipeline> | null = null
 let transformersModule: TransformersModule | null = null
 
+const isProd = process.env.NEXT_PUBLIC_ENV === 'production'
+const logFallback = (...args: unknown[]): void => {
+  if (!isProd) console.warn('[fallback]', ...args)
+}
+
+function isTransformersModule(value: unknown): value is TransformersModule {
+  if (!value || typeof value !== 'object' || !('pipeline' in value)) {
+    return false
+  }
+  const candidate = (value as { pipeline?: unknown }).pipeline
+  return typeof candidate === 'function'
+}
+
 async function loadTransformersModule(): Promise<TransformersModule> {
   if (transformersModule) return transformersModule
   if (typeof window === 'undefined') {
@@ -63,25 +76,33 @@ async function loadTransformersModule(): Promise<TransformersModule> {
   }
   if (window.transformers) {
     transformersModule = window.transformers
+    logFallback('reusing cached transformers bundle')
     return transformersModule
   }
-  const url =
-    'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js'
-  const mod = await import(/* webpackIgnore: true */ url)
-  const resolved = (mod?.default ?? mod) as TransformersModule | undefined
-  if (!resolved || typeof resolved.pipeline !== 'function') {
+  const url = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js'
+  logFallback('loading transformers bundle', url)
+  const imported: unknown = await import(/* webpackIgnore: true */ url)
+  const candidate = (imported as { default?: unknown }).default ?? imported
+  if (!isTransformersModule(candidate)) {
     throw new Error('Transformers module gagal dimuat dari CDN')
   }
-  transformersModule = resolved
-  window.transformers = resolved
+  transformersModule = candidate
+  try {
+    candidate.env.allowLocalModels = false
+    candidate.env.allowRemoteModels = true
+  } catch (error) {
+    logFallback('failed to set transformers env flags', error)
+  }
+  logFallback('transformers bundle loaded')
+  window.transformers = candidate
   return transformersModule
 }
 
 async function ensurePipeline(): Promise<ASRPipeline> {
   if (!pipelinePromise) {
     pipelinePromise = (async (): Promise<ASRPipeline> => {
-      const module = await loadTransformersModule()
-      const { pipeline } = module
+      const loadedModule = await loadTransformersModule()
+      const { pipeline } = loadedModule
       const p = (await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
         quantized: true,
       })) as unknown as ASRPipeline

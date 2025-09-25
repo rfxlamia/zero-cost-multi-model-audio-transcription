@@ -5,7 +5,7 @@ workers_dev = true
 
 [vars]
 LOG_LEVEL = "info"
-ORIGIN_WHITELIST = "http://localhost:3000,https://yourapp.vercel.app"
+ORIGIN_WHITELIST = "http://localhost:3000,https://zerotransc.vercel.app,https://zerotransc-vvs-projects-cf7f4101.vercel.app,https://zerotransc-git-main-vvs-projects-cf7f4101.vercel.app,https://zerotransc-1gpmbvxxr-vvs-projects-cf7f4101.vercel.app"
 
 [[kv_namespaces]]
 binding = "COMMUNITY_CACHE"
