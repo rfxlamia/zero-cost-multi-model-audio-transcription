@@ -103,7 +103,7 @@ async function ensurePipeline(): Promise<ASRPipeline> {
     pipelinePromise = (async (): Promise<ASRPipeline> => {
       const loadedModule = await loadTransformersModule()
       const { pipeline } = loadedModule
-      const p = (await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
+      const p = (await pipeline('automatic-speech-recognition', 'Xenova/whisper-small.en', {
         quantized: true,
       })) as unknown as ASRPipeline
       return p
