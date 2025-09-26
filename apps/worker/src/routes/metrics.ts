@@ -46,7 +46,7 @@ metrics.get('/api/metrics', async (c) => {
     return c.json(metricsCache.data)
   }
 
-  const providers = ['groq', 'huggingface', 'together', 'cohere'] as const
+  const providers = ['groq', 'huggingface', 'together', 'cohere', 'sumopod'] as const
   type ProviderStats = {
     enabled: boolean
     nearLimit: boolean
@@ -95,7 +95,10 @@ metrics.get('/api/metrics', async (c) => {
         !!c.env.HF_API_TOKEN &&
         !(c.env.DISABLE_HF === '1' || c.env.DISABLE_HF === true)) ||
       (p === 'together' && !!c.env.TOGETHER_API_KEY) ||
-      (p === 'cohere' && !!c.env.COHERE_API_KEY)
+      (p === 'cohere' && !!c.env.COHERE_API_KEY) ||
+      (p === 'sumopod' &&
+        !!c.env.SUMOPOD_API_KEY &&
+        !(c.env.DISABLE_SUMOPOD === '1' || c.env.DISABLE_SUMOPOD === true))
     stats[p] = { enabled, nearLimit, daily, latency }
   }
 

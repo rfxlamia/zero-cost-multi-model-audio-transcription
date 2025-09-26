@@ -121,7 +121,7 @@ export default function HomeInteractive(): ReactElement {
     reconnectTimer.current = setTimeout(() => {
       reconnectTimer.current = null
       if (!jobIdRef.current) return
-      logEvent(`SSE reconnect attempt ${reconnectAttempts.current}`)
+      logEvent('SSE reconnect attempt ' + String(reconnectAttempts.current))
       openEventSourceRef.current(jobIdRef.current)
     }, delay)
   }, [clearHeartbeat, logEvent])
@@ -163,17 +163,19 @@ export default function HomeInteractive(): ReactElement {
         logEvent(`raw: ${msg}`)
         try {
           const payload = JSON.parse(ev.data as string) as { chunkIndex?: number; text?: string }
-          if (Number.isInteger(payload.chunkIndex) && payload.chunkIndex! >= 0) {
-            const chunkIndex = payload.chunkIndex!
+          if (typeof payload.chunkIndex === 'number' && payload.chunkIndex >= 0) {
+            const chunkIndex = payload.chunkIndex
             const text = typeof payload.text === 'string' ? payload.text : ''
             setChunks((prev) => {
               const arr = [...prev]
-              const existing = arr[chunkIndex]
+              const previous = arr[chunkIndex]
+              const base = previous && typeof previous === 'object' ? previous : { index: chunkIndex }
               arr[chunkIndex] = {
-                ...existing,
                 index: chunkIndex,
                 raw: text,
-                final: existing?.final ?? text,
+                final: base.final ? base.final : text,
+                quick: base.quick,
+                enhanced: base.enhanced,
               }
               return arr
             })
@@ -190,17 +192,19 @@ export default function HomeInteractive(): ReactElement {
         logEvent(`quick: ${msg}`)
         try {
           const payload = JSON.parse(ev.data as string) as { chunkIndex?: number; text?: string }
-          if (Number.isInteger(payload.chunkIndex) && payload.chunkIndex! >= 0) {
-            const chunkIndex = payload.chunkIndex!
+          if (typeof payload.chunkIndex === 'number' && payload.chunkIndex >= 0) {
+            const chunkIndex = payload.chunkIndex
             const text = typeof payload.text === 'string' ? payload.text : ''
             setChunks((prev) => {
               const arr = [...prev]
-              const existing = arr[chunkIndex]
+              const previous = arr[chunkIndex]
+              const base = previous && typeof previous === 'object' ? previous : { index: chunkIndex }
               arr[chunkIndex] = {
-                ...existing,
                 index: chunkIndex,
+                raw: base.raw,
                 quick: text,
-                final: existing?.enhanced ?? existing?.final ?? text,
+                enhanced: base.enhanced,
+                final: base.enhanced ? base.enhanced : base.final ? base.final : text,
               }
               return arr
             })
@@ -217,15 +221,17 @@ export default function HomeInteractive(): ReactElement {
         logEvent(`enhanced: ${msg}`)
         try {
           const payload = JSON.parse(ev.data as string) as { chunkIndex?: number; text?: string }
-          if (Number.isInteger(payload.chunkIndex) && payload.chunkIndex! >= 0) {
-            const chunkIndex = payload.chunkIndex!
+          if (typeof payload.chunkIndex === 'number' && payload.chunkIndex >= 0) {
+            const chunkIndex = payload.chunkIndex
             const text = typeof payload.text === 'string' ? payload.text : ''
             setChunks((prev) => {
               const arr = [...prev]
-              const existing = arr[chunkIndex]
+              const previous = arr[chunkIndex]
+              const base = previous && typeof previous === 'object' ? previous : { index: chunkIndex }
               arr[chunkIndex] = {
-                ...existing,
                 index: chunkIndex,
+                raw: base.raw,
+                quick: base.quick,
                 enhanced: text,
                 final: text,
               }
@@ -306,13 +312,17 @@ export default function HomeInteractive(): ReactElement {
     }
   }, [clearHeartbeat, clearReconnectTimer])
 
+  const isMockEventSource = useCallback((): boolean => {
+    if (typeof window === 'undefined') return false
+    const ES = (window as typeof window & { EventSource?: typeof EventSource }).EventSource
+    return !!ES && ES.name === 'MockEventSource'
+  }, [])
+
   const handleStartRecording = useCallback(async (): Promise<void> => {
     if (!isRecording) {
       setIsRecording(true)
       try {
-        const isMockSSE =
-          typeof window !== 'undefined' && (window as typeof window & { EventSource?: typeof EventSource })
-            .EventSource?.name === 'MockEventSource'
+        const isMockSSE = isMockEventSource()
         const res = await fetch(`${apiBase}/api/transcribe/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -324,11 +334,12 @@ export default function HomeInteractive(): ReactElement {
           try {
             parsed = JSON.parse(raw) as { id?: string; error?: string }
           } catch (error) {
-            logEvent(`start parse error: ${(error as Error)?.message ?? 'unknown'}`)
+            const msg = error instanceof Error ? error.message : 'unknown'
+            logEvent('start parse error: ' + msg)
           }
         }
         if (!res.ok || !parsed || typeof parsed.id !== 'string') {
-          const reason = parsed?.error || res.statusText || 'unknown'
+          const reason = (parsed && parsed.error) || res.statusText || 'unknown'
           logEvent(`start recording rejected: ${reason}`)
           if (isMockSSE) {
             const fallbackId = 'job-test'
@@ -346,10 +357,8 @@ export default function HomeInteractive(): ReactElement {
         openEventSource(id)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'unknown error'
-        logEvent(`start recording error: ${message}`)
-        const isMockSSE =
-          typeof window !== 'undefined' && (window as typeof window & { EventSource?: typeof EventSource })
-            .EventSource?.name === 'MockEventSource'
+        logEvent('start recording error: ' + message)
+        const isMockSSE = isMockEventSource()
         if (isMockSSE) {
           const fallbackId = 'job-test'
           updateJobId(fallbackId)
@@ -383,9 +392,7 @@ export default function HomeInteractive(): ReactElement {
       logEvent(`upload: ${file.name}`)
 
       if (file.size > MAX_FILE_SIZE_BYTES) {
-        logEvent(
-          `upload rejected: ukuran ${formatMB(file.size)}MB > limit ${MAX_FILE_SIZE_MB}MB`
-        )
+        logEvent('upload rejected: ukuran ' + formatMB(file.size) + 'MB > limit ' + String(MAX_FILE_SIZE_MB) + 'MB')
         return
       }
 
@@ -398,49 +405,63 @@ export default function HomeInteractive(): ReactElement {
       if (durationSeconds === null) {
         logEvent('durasi tidak terbaca, lanjut dengan asumsi aman')
       } else {
-        logEvent(`durasi terdeteksi ~${formatMinutes(durationSeconds)} menit`)
+        logEvent('durasi terdeteksi ~' + formatMinutes(durationSeconds) + ' menit')
         if (durationSeconds > MAX_DURATION_SECONDS) {
-          logEvent(
-            `upload rejected: durasi ${formatMinutes(durationSeconds)} menit > limit ${MAX_AUDIO_DURATION_MINUTES} menit`
-          )
+          logEvent('upload rejected: durasi ' + formatMinutes(durationSeconds) + ' menit > limit ' + String(MAX_AUDIO_DURATION_MINUTES) + ' menit')
           return
         }
       }
 
-      if (!transformersEnabled()) {
-        logEvent('fallback disabled via env')
-        return
-      }
-      if (!fallback.allowed || fallback.status === 'blocked') {
-        logEvent(`fallback unavailable: ${fallback.reason || 'unknown reason'}`)
-        return
-      }
       try {
-        logEvent('fallback starting model load')
-        const result = await fallback.transcribeFile(file)
-        const segments = result.segments.filter((seg) => seg.text.trim().length)
-        logEvent(
-          `fallback success: ${(segments.length || result.segments.length)} segments in ${Math.round(result.elapsedMs)}ms`
-        )
-        const mapped = (segments.length ? segments : result.segments).map((seg, idx) => ({
-          index: idx,
-          raw: seg.text,
-          quick: seg.text,
-          enhanced: seg.text,
-          final: seg.text,
-        }))
-        setChunks(mapped)
-        setTotalChunks(mapped.length)
-        setProgress({ raw: mapped.length, quick: mapped.length, enhanced: mapped.length })
-        setDownloadStage('enhanced')
-        setSelectedStage('final')
-        updateJobId(null)
+        // 1) Start job on worker
+        const body: { source: string; sizeBytes: number; durationSeconds?: number } = {
+          source: 'upload',
+          sizeBytes: file.size,
+        }
+        if (typeof durationSeconds === 'number') body.durationSeconds = durationSeconds
+        const startRes = await fetch(`${apiBase}/api/transcribe/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        const startText = await startRes.text()
+        const startJson = startText ? (JSON.parse(startText) as { id?: string; error?: string }) : null
+        if (!startRes.ok || !(startJson && typeof startJson.id === 'string')) {
+          const reason = (startJson && startJson.error) || startRes.statusText || 'unknown'
+          logEvent(`start job failed: ${reason}`)
+          return
+        }
+        const id = startJson.id
+        updateJobId(id)
+        logEvent(`job created: ${id}`)
+
+        // 2) Upload to SumoPod ASR endpoint
+        const fd = new FormData()
+        fd.append('file', file, file.name)
+        fd.append('language', 'id')
+        const asrRes = await fetch(`${apiBase}/api/transcribe/${id}/asr/sumopod`, {
+          method: 'POST',
+          body: fd,
+        })
+        const asrText = await asrRes.text()
+        logEvent('asr sumopod: ' + (asrText || String(asrRes.status)))
+        if (!asrRes.ok) {
+          setIsRecording(false)
+          return
+        }
+
+        // 3) Open SSE to stream raw → quick → enhanced
+        setChunks([])
+        setProgress({ raw: 0, quick: 0, enhanced: 0 })
+        setTotalChunks(0)
+        setDownloadStage('raw')
+        openEventSourceRef.current(id)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'unknown error'
-        logEvent(`fallback error: ${message}`)
+        logEvent('upload flow error: ' + message)
       }
     },
-    [fallback, logEvent, updateJobId]
+    [apiBase, logEvent, updateJobId]
   )
 
   return (
@@ -512,13 +533,13 @@ export default function HomeInteractive(): ReactElement {
           <div className="mt-4 rounded-2xl border border-slate-200/70 bg-white/70 p-4 text-xs text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-300" aria-live="polite">
             {fallback.status === 'loading' && 'Mengolah dengan Transformers.js fallback…'}
             {fallback.status === 'ready' &&
-              (fallback.reason ? `Fallback siap · ${fallback.reason}` : 'Fallback siap digunakan')}
+              (fallback.reason ? 'Fallback siap · ' + fallback.reason : 'Fallback siap digunakan')}
             {fallback.status === 'checking' && 'Memeriksa kesiapan fallback…'}
             {fallback.status === 'blocked' &&
-              `Fallback tidak tersedia: ${fallback.reason ?? 'tidak diketahui'}`}
-            {fallback.status === 'error' && `Fallback error: ${fallback.error || 'Unknown error'}`}
+              'Fallback tidak tersedia: ' + (fallback.reason ?? 'tidak diketahui')}
+            {fallback.status === 'error' && ('Fallback error: ' + (fallback.error || 'Unknown error'))}
             {fallback.latencyMs && fallback.status === 'ready'
-              ? ` · Latensi ${(fallback.latencyMs / 1000).toFixed(1)}s`
+              ? ' · Latensi ' + (fallback.latencyMs / 1000).toFixed(1) + 's'
               : null}
           </div>
           {fallback.allowed && fallback.status !== 'loading' && (
@@ -581,7 +602,7 @@ export default function HomeInteractive(): ReactElement {
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
                     <div
                       className="h-2 rounded-full bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400"
-                      style={{ width: `${pct}%` }}
+                      style={{ width: String(pct) + '%' }}
                     />
                   </div>
                 </div>

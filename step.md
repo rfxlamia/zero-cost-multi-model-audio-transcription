@@ -208,6 +208,8 @@ Bagian B — Penyiapan environment keys, bindings, dan contoh konfigurasi
 - HF_API_TOKEN — Hugging Face Inference token
 - TOGETHER_API_KEY — Together AI key
 - COHERE_API_KEY — Cohere key
+- SUMOPOD_API_KEY — kunci SumoPod Whisper-1 (ASR utama)
+- SUMOPOD_BASE_URL — opsional, default `https://ai.sumopod.com`
 - APP_SECRET — secret untuk signing (cookies, nonce)
 - ORIGIN_WHITELIST — daftar origin frontend (pisahkan dengan koma)
 - LOG_LEVEL — info|warn|error
@@ -292,6 +294,7 @@ wrangler secret put GROQ_API_KEY
 wrangler secret put HF_API_TOKEN
 wrangler secret put TOGETHER_API_KEY
 wrangler secret put COHERE_API_KEY
+wrangler secret put SUMOPOD_API_KEY
 wrangler secret put APP_SECRET
 wrangler secret put TURNSTILE_SECRET # opsional
 
@@ -377,6 +380,17 @@ jsonDownloadCopy code Wrap{ "type":"status", "jobId":"...", "status":"transcribi
 { "type":"quick", "chunkIndex":3, "text":"...", "provider":"groq", "confidence":0.72 }
 { "type":"enhanced", "chunkIndex":0, "text":"...", "provider":"huggingface", "confidence":0.84 }
 { "type":"done", "jobId":"..." }
+
+1. Endpoint ASR SumoPod (baru)
+
+http
+POST /api/transcribe/:id/asr/sumopod
+
+Body: multipart/form-data { file, language?: 'id'|'id-en', index?: number, startTime?: number, endTime?: number, audioHash?: string }
+
+Efek: memanggil SumoPod Whisper-1 dan menyimpan RAW transcript ke `JOB_STATE:{id}.chunks[index]`. Mengembalikan `{ ok, text, provider:'sumopod', index }`.
+
+Catatan: SSE stream saat ini membaca state pada awal koneksi. Jalankan ASR (endpoint ini) sebelum membuka SSE agar event RAW dapat dipancarkan dalam satu kali lifecycle.
 
 1. Hash audio di browser (unik per chunk)
 

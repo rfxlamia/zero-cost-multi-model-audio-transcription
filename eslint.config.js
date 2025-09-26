@@ -86,6 +86,7 @@ export default [
       'apps/web/tailwind.config.js',
       'apps/web/postcss.config.js',
       'apps/worker/**/*',
+      'tests/**',
       '**/*.d.ts',
       'packages/shared/dist/**',
     ],

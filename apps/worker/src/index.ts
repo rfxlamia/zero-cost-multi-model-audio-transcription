@@ -10,6 +10,7 @@ import { stream } from './routes/stream'
 import { exp } from './routes/export'
 import { metrics } from './routes/metrics'
 import { transformers as transformersRoute } from './routes/transformers'
+import { asr } from './routes/asr'
 import { cors } from 'hono/cors'
 import { securityMiddleware } from './middleware/security'
 
@@ -23,11 +24,14 @@ export type Env = {
   AI: Ai // Cloudflare AI binding type
   GROQ_API_KEY?: string
   HF_API_TOKEN?: string
+  SUMOPOD_API_KEY?: string
+  SUMOPOD_BASE_URL?: string
   ORIGIN_WHITELIST?: string
   LOG_LEVEL?: string
   DISABLE_GROQ?: string | boolean
   DISABLE_HF?: string | boolean
   DISABLE_TRANSFORMERS?: string | boolean
+  DISABLE_SUMOPOD?: string | boolean
   APP_SECRET?: string
   TURNSTILE_SECRET?: string
   TOGETHER_API_KEY?: string
@@ -60,6 +64,7 @@ app.route('/', stream)
 app.route('/', exp)
 app.route('/', metrics)
 app.route('/', transformersRoute)
+app.route('/', asr)
 
 app.onError((err, c) => {
   console.error(err)

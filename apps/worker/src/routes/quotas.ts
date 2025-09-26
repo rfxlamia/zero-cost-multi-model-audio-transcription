@@ -19,7 +19,7 @@ export const quotas = new Hono<{ Bindings: Env }>()
 
 // GET /api/quotas
 quotas.get('/api/quotas', async (c) => {
-  const providers = ['groq', 'huggingface', 'together', 'cohere', 'workersAI']
+  const providers = ['groq', 'huggingface', 'together', 'cohere', 'workersAI', 'sumopod']
   const day = dayKey()
   const minute = (() => {
     const d = new Date()

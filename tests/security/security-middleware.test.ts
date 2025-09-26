@@ -122,4 +122,28 @@ describe('securityMiddleware', () => {
     const body = await second.json()
     expect(body.error).toBe('rate_limit_exceeded')
   })
+
+  it('skips global rate limit for metrics endpoint', async () => {
+    const { env } = createEnv()
+    const app = new Hono<{ Bindings: Env }>()
+    app.use('*', securityMiddleware)
+    app.get('/api/metrics', (c) => c.text('metrics'))
+
+    const first = await app.fetch(
+      new Request('https://test.dev/api/metrics?fresh=1', {
+        headers: { 'cf-connecting-ip': '5.5.5.5' },
+      }),
+      env
+    )
+    expect(first.status).toBe(200)
+
+    const second = await app.fetch(
+      new Request('https://test.dev/api/metrics?fresh=1', {
+        headers: { 'cf-connecting-ip': '5.5.5.5' },
+      }),
+      env
+    )
+
+    expect(second.status).toBe(200)
+  })
 })

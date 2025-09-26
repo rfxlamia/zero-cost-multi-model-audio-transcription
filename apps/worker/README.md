@@ -82,3 +82,23 @@ Then call the same endpoint; the response provider should be `huggingface` if th
 - Response: `RESPONSE_CACHE:${sha256(audioHash|mode|sortedGlossary)}`
 
 Glossary affects cache signature; change in glossary triggers a fresh correction.
+
+## Endpoint — ASR (SumoPod Whisper-1)
+
+- Path: `POST /api/transcribe/:id/asr/sumopod`
+- Body: `multipart/form-data`
+  - `file`: audio blob (e.g., `audio/webm`, `audio/wav`)
+  - `language`: optional, default `id`
+  - `index`: optional chunk index
+  - `startTime`, `endTime`: optional timestamps in seconds
+  - `audioHash`: optional chunk hash
+- Response (200):
+  ```json
+  { "ok": true, "text": "...", "provider": "sumopod", "index": 0 }
+  ```
+
+Notes:
+
+- Requires `SUMOPOD_API_KEY` secret.
+- Persisted to `JOB_STATE:{id}.chunks[index]` so SSE stream can emit RAW → QUICK → ENHANCED.
+- Call this endpoint before opening `/api/transcribe/{id}/stream` to ensure RAW is available.

@@ -33,7 +33,7 @@ export interface TranscriptionChunk {
 }
 
 export interface ProviderUsage {
-  name: 'groq' | 'huggingface' | 'together' | 'cohere' | 'local'
+  name: 'groq' | 'huggingface' | 'together' | 'cohere' | 'sumopod' | 'local'
   requestsUsed: number
   quotaRemaining: number
   resetAt: Date

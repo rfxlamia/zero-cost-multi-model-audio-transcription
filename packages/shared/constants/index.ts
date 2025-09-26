@@ -13,6 +13,9 @@ export const PROVIDER_QUOTAS = {
     trialRequests: 3000,
     minuteRequests: 100,
   },
+  sumopod: {
+    creditUsdDaily: 1, // default daily budget assumption ($1) — tune via metrics
+  },
   workersAI: {
     dailyMinutes: 10,
   },
