@@ -13,7 +13,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default [
   {
-    ignores: ['.next/**', 'out/**', 'build/**', 'dist/**'],
+    ignores: [
+      '.next/**',
+      'out/**',
+      'build/**',
+      'dist/**',
+      '**/.next/**',
+      '**/build/**',
+      '**/dist/**',
+      '**/.wrangler/**',
+      '*.config.js',
+      '*.config.mjs',
+      '*.config.ts',
+      '.lighthouserc.cjs',
+      'postcss.config.js',
+      'tailwind.config.js',
+      'scripts/**/*',
+      'tests/**/*',
+    ],
   },
   // Special config for Worker app
   {
@@ -80,8 +97,11 @@ export default [
       'node_modules',
       'dist',
       '**/dist/**',
-      '.next',
+      '.next/**',
+      '**/.next/**',
       '*.config.js',
+      '*.config.mjs',
+      '*.config.ts',
       'apps/web/next.config.js',
       'apps/web/tailwind.config.js',
       'apps/web/postcss.config.js',
@@ -89,6 +109,9 @@ export default [
       'tests/**',
       '**/*.d.ts',
       'packages/shared/dist/**',
+      '.lighthouserc.cjs',
+      '**/.wrangler/**',
+      'scripts/**/*',
     ],
     languageOptions: {
       parser: tsParser,

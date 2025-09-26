@@ -20,7 +20,7 @@ type Metrics = {
   semaphores: { providerConcurrency: number; kvConcurrency: number }
 }
 
-type QuotasResponse = { quotas: Partial<Record<string, Quotas>> }
+type QuotasResponse = { quotas?: Partial<Record<string, Quotas>> }
 
 const SAMPLE_QUOTAS: Partial<Record<string, Quotas>> = {
   groq: {
@@ -69,11 +69,13 @@ function percent(used?: number | null, limit?: number | null): number {
 
 async function fetchJsonWithTimeout<T>(url: string, timeoutMs = 1500): Promise<T> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  const timeout = setTimeout(() => {
+    controller.abort()
+  }, timeoutMs)
   try {
     const response = await fetch(url, { signal: controller.signal })
     if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status}`)
+      throw new Error(`Request failed with status ${String(response.status)}`)
     }
     return (await response.json()) as T
   } finally {
@@ -100,7 +102,7 @@ export default function DashboardPage(): ReactElement {
         fetchJsonWithTimeout<QuotasResponse>(`${apiBase}/api/quotas`),
         fetchJsonWithTimeout<Metrics>(`${apiBase}/api/metrics`),
       ])
-      setQuotas(q.quotas ?? {})
+      setQuotas(q.quotas || {})
       setMetrics(m)
     } catch (e) {
       console.error(e)
@@ -178,11 +180,13 @@ export default function DashboardPage(): ReactElement {
             return (
               <div
                 key={p}
-                className="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/70"
+                className="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-lg dark:border-slate-700/70 dark:bg-slate-900/70"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold capitalize text-slate-900 dark:text-white">{p}</h2>
+                    <h2 className="text-lg font-semibold capitalize text-slate-900 dark:text-white">
+                      {p}
+                    </h2>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
                       Success rate {m ? Math.round((m.daily.successRate || 0) * 100) : 100}% ·{' '}
                       {m?.daily.success ?? 0} sukses / {m?.daily.failure ?? 0} gagal today

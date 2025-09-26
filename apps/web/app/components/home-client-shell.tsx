@@ -6,7 +6,7 @@ import type { ReactElement } from 'react'
 const HomeInteractive = dynamic(() => import('./home-interactive'), {
   ssr: false,
   loading: () => (
-    <section className="mx-auto max-w-5xl animate-fade-in">
+    <section className="animate-fade-in mx-auto max-w-5xl">
       <div className="rounded-3xl border border-slate-200 bg-white/70 p-10 shadow-lg shadow-slate-900/5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-none">
         <div className="flex flex-col items-center gap-6 text-center md:flex-row md:text-left">
           <div className="flex-1 space-y-4">

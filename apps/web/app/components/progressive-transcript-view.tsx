@@ -130,21 +130,21 @@ export const ProgressiveTranscriptView: React.FC<Props> = ({
           </button>
           <a
             className="rounded-lg bg-gray-100 px-3 py-1 text-sm hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-            href={jobId ? `${(exportBase ?? apiBase)}/api/export/${jobId}.txt` : '#'}
+            href={jobId ? `${exportBase ?? apiBase}/api/export/${jobId}.txt` : '#'}
             aria-disabled={!jobId}
           >
             Download TXT
           </a>
           <a
             className="rounded-lg bg-gray-100 px-3 py-1 text-sm hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-            href={jobId ? `${(exportBase ?? apiBase)}/api/export/${jobId}.srt` : '#'}
+            href={jobId ? `${exportBase ?? apiBase}/api/export/${jobId}.srt` : '#'}
             aria-disabled={!jobId}
           >
             Download SRT
           </a>
           <a
             className="rounded-lg bg-gray-100 px-3 py-1 text-sm hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-            href={jobId ? `${(exportBase ?? apiBase)}/api/export/${jobId}.vtt` : '#'}
+            href={jobId ? `${exportBase ?? apiBase}/api/export/${jobId}.vtt` : '#'}
             aria-disabled={!jobId}
           >
             Download VTT

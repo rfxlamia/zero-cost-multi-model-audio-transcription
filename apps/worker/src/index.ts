@@ -11,7 +11,6 @@ import { exp } from './routes/export'
 import { metrics } from './routes/metrics'
 import { transformers as transformersRoute } from './routes/transformers'
 import { asr } from './routes/asr'
-import { cors } from 'hono/cors'
 import { securityMiddleware } from './middleware/security'
 
 export type Env = {
@@ -40,14 +39,41 @@ export type Env = {
 
 const app = new Hono<{ Bindings: Env }>()
 
-// CORS based on ORIGIN_WHITELIST (comma-separated)
+// CORS with wildcard + dynamic origin matching based on ORIGIN_WHITELIST
+function isAllowedOrigin(origin: string | null, list: string[]): boolean {
+  if (!origin) return false
+  for (const pat of list) {
+    if (pat === '*') return true
+    // Support wildcard patterns like https://*.vercel.app
+    const escaped = pat.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
+    const re = new RegExp(`^${escaped}$`)
+    if (re.test(origin)) return true
+  }
+  return false
+}
+
 app.use('/api/*', async (c, next) => {
-  const allow = (c.env.ORIGIN_WHITELIST || '*')
+  const rawList = (c.env.ORIGIN_WHITELIST || '*')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
-  const handler = cors({ origin: allow.length ? allow : '*' })
-  return handler(c, next)
+  const origin = c.req.header('origin') || null
+  const allowed = rawList.length ? rawList : ['*']
+  const ok = allowed.includes('*') || isAllowedOrigin(origin, allowed)
+  // Preflight handling
+  if (c.req.method === 'OPTIONS') {
+    if (ok && origin) c.header('Access-Control-Allow-Origin', origin)
+    c.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    const reqHeaders = c.req.header('access-control-request-headers')
+    c.header('Access-Control-Allow-Headers', reqHeaders || 'Content-Type, Authorization')
+    c.header('Access-Control-Max-Age', '86400')
+    c.header('Vary', 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers')
+    return c.body(null, 204)
+  }
+  await next()
+  // Attach CORS headers on actual responses
+  if (ok && origin) c.header('Access-Control-Allow-Origin', origin)
+  c.header('Vary', 'Origin')
 })
 
 app.use('/api/*', securityMiddleware)

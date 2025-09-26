@@ -14,6 +14,7 @@ import { MAX_AUDIO_DURATION_MINUTES, MAX_FILE_SIZE_MB } from '@transcriptorai/sh
 import { transformersEnabled } from '../lib/flags'
 import { useTransformersFallback } from '../hooks/use-transformers-fallback'
 import type { Stage } from './progressive-transcript-view'
+import TurnstileWidget from './turnstile-widget'
 
 const ProgressiveTranscriptView = dynamic(() => import('./progressive-transcript-view'), {
   ssr: false,
@@ -66,6 +67,8 @@ export default function HomeInteractive(): ReactElement {
   const apiBase = useMemo(() => resolveApiBase(rawApiBase), [rawApiBase])
   const exportBase = rawApiBase || apiBase
   const fallback = useTransformersFallback({ enabled: isTransformersEnabled, apiBase })
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITEKEY || ''
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
   const [events, setEvents] = useState<string[]>([])
   const [downloadStage, setDownloadStage] = useState<'raw' | 'quick' | 'enhanced'>('raw')
@@ -83,10 +86,7 @@ export default function HomeInteractive(): ReactElement {
   const heartbeatTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const logEvent = useCallback((message: string): void => {
-    setEvents((prev) => [
-      ...prev.slice(-199),
-      message,
-    ])
+    setEvents((prev) => [...prev.slice(-199), message])
   }, [])
 
   const updateJobId = useCallback((value: string | null): void => {
@@ -168,8 +168,10 @@ export default function HomeInteractive(): ReactElement {
             const text = typeof payload.text === 'string' ? payload.text : ''
             setChunks((prev) => {
               const arr = [...prev]
-              const previous = arr[chunkIndex]
-              const base = previous && typeof previous === 'object' ? previous : { index: chunkIndex }
+              const previous = arr[chunkIndex] as
+                | { index: number; raw?: string; quick?: string; enhanced?: string; final?: string }
+                | undefined
+              const base = previous ?? { index: chunkIndex }
               arr[chunkIndex] = {
                 index: chunkIndex,
                 raw: text,
@@ -197,8 +199,10 @@ export default function HomeInteractive(): ReactElement {
             const text = typeof payload.text === 'string' ? payload.text : ''
             setChunks((prev) => {
               const arr = [...prev]
-              const previous = arr[chunkIndex]
-              const base = previous && typeof previous === 'object' ? previous : { index: chunkIndex }
+              const previous = arr[chunkIndex] as
+                | { index: number; raw?: string; quick?: string; enhanced?: string; final?: string }
+                | undefined
+              const base = previous ?? { index: chunkIndex }
               arr[chunkIndex] = {
                 index: chunkIndex,
                 raw: base.raw,
@@ -226,8 +230,10 @@ export default function HomeInteractive(): ReactElement {
             const text = typeof payload.text === 'string' ? payload.text : ''
             setChunks((prev) => {
               const arr = [...prev]
-              const previous = arr[chunkIndex]
-              const base = previous && typeof previous === 'object' ? previous : { index: chunkIndex }
+              const previous = arr[chunkIndex] as
+                | { index: number; raw?: string; quick?: string; enhanced?: string; final?: string }
+                | undefined
+              const base = previous ?? { index: chunkIndex }
               arr[chunkIndex] = {
                 index: chunkIndex,
                 raw: base.raw,
@@ -314,19 +320,29 @@ export default function HomeInteractive(): ReactElement {
 
   const isMockEventSource = useCallback((): boolean => {
     if (typeof window === 'undefined') return false
-    const ES = (window as typeof window & { EventSource?: typeof EventSource }).EventSource
-    return !!ES && ES.name === 'MockEventSource'
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    return window.EventSource?.name === 'MockEventSource'
   }, [])
 
   const handleStartRecording = useCallback(async (): Promise<void> => {
     if (!isRecording) {
       setIsRecording(true)
       try {
+        if (siteKey && !turnstileToken) {
+          logEvent('Turnstile belum tervalidasi. Lengkapi verifikasi terlebih dahulu.')
+          setIsRecording(false)
+          return
+        }
         const isMockSSE = isMockEventSource()
+        const recBody: { source: string; turnstileToken?: string } = { source: 'recording' }
+        if (siteKey && turnstileToken) recBody.turnstileToken = turnstileToken
         const res = await fetch(`${apiBase}/api/transcribe/start`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source: 'recording' }),
+          headers: {
+            'Content-Type': 'application/json',
+            ...(siteKey && turnstileToken ? { 'cf-turnstile-token': turnstileToken } : {}),
+          },
+          body: JSON.stringify(recBody),
         })
         const raw = await res.text()
         let parsed: { id?: string; error?: string } | null = null
@@ -382,7 +398,18 @@ export default function HomeInteractive(): ReactElement {
       setTotalChunks(0)
       updateJobId(null)
     }
-  }, [apiBase, clearHeartbeat, clearReconnectTimer, isRecording, logEvent, openEventSource, updateJobId])
+  }, [
+    apiBase,
+    clearHeartbeat,
+    clearReconnectTimer,
+    isRecording,
+    logEvent,
+    openEventSource,
+    updateJobId,
+    isMockEventSource,
+    siteKey,
+    turnstileToken,
+  ])
 
   const handleFileUpload = useCallback(
     async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
@@ -392,7 +419,13 @@ export default function HomeInteractive(): ReactElement {
       logEvent(`upload: ${file.name}`)
 
       if (file.size > MAX_FILE_SIZE_BYTES) {
-        logEvent('upload rejected: ukuran ' + formatMB(file.size) + 'MB > limit ' + String(MAX_FILE_SIZE_MB) + 'MB')
+        logEvent(
+          'upload rejected: ukuran ' +
+            formatMB(file.size) +
+            'MB > limit ' +
+            String(MAX_FILE_SIZE_MB) +
+            'MB'
+        )
         return
       }
 
@@ -400,32 +433,53 @@ export default function HomeInteractive(): ReactElement {
       try {
         durationSeconds = await getAudioDuration(file)
       } catch (error) {
-        logEvent(`duration check failed: ${(error as Error)?.message ?? 'unknown'}`)
+        logEvent(`duration check failed: ${(error as Error).message || 'unknown'}`)
       }
       if (durationSeconds === null) {
         logEvent('durasi tidak terbaca, lanjut dengan asumsi aman')
       } else {
         logEvent('durasi terdeteksi ~' + formatMinutes(durationSeconds) + ' menit')
         if (durationSeconds > MAX_DURATION_SECONDS) {
-          logEvent('upload rejected: durasi ' + formatMinutes(durationSeconds) + ' menit > limit ' + String(MAX_AUDIO_DURATION_MINUTES) + ' menit')
+          logEvent(
+            'upload rejected: durasi ' +
+              formatMinutes(durationSeconds) +
+              ' menit > limit ' +
+              String(MAX_AUDIO_DURATION_MINUTES) +
+              ' menit'
+          )
           return
         }
       }
 
       try {
+        if (siteKey && !turnstileToken) {
+          logEvent('Turnstile belum tervalidasi. Lengkapi verifikasi terlebih dahulu.')
+          return
+        }
         // 1) Start job on worker
-        const body: { source: string; sizeBytes: number; durationSeconds?: number } = {
+        const body: {
+          source: string
+          sizeBytes: number
+          durationSeconds?: number
+          turnstileToken?: string
+        } = {
           source: 'upload',
           sizeBytes: file.size,
         }
         if (typeof durationSeconds === 'number') body.durationSeconds = durationSeconds
+        if (siteKey && turnstileToken) body.turnstileToken = turnstileToken
         const startRes = await fetch(`${apiBase}/api/transcribe/start`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(siteKey && turnstileToken ? { 'cf-turnstile-token': turnstileToken } : {}),
+          },
           body: JSON.stringify(body),
         })
         const startText = await startRes.text()
-        const startJson = startText ? (JSON.parse(startText) as { id?: string; error?: string }) : null
+        const startJson = startText
+          ? (JSON.parse(startText) as { id?: string; error?: string })
+          : null
         if (!startRes.ok || !(startJson && typeof startJson.id === 'string')) {
           const reason = (startJson && startJson.error) || startRes.statusText || 'unknown'
           logEvent(`start job failed: ${reason}`)
@@ -461,7 +515,7 @@ export default function HomeInteractive(): ReactElement {
         logEvent('upload flow error: ' + message)
       }
     },
-    [apiBase, logEvent, updateJobId]
+    [apiBase, logEvent, updateJobId, siteKey, turnstileToken]
   )
 
   return (
@@ -476,7 +530,9 @@ export default function HomeInteractive(): ReactElement {
                 auto-reconnect SSE.
               </p>
             </div>
-            <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full ${isRecording ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-200' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-200'}`}>
+            <span
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-full ${isRecording ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-200' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-200'}`}
+            >
               {isRecording ? '⏹️' : '🎙️'}
             </span>
           </div>
@@ -493,10 +549,22 @@ export default function HomeInteractive(): ReactElement {
           >
             {isRecording ? 'Stop Recording' : 'Start Recording'}
           </button>
-          <dl className="mt-6 grid gap-4 text-xs text-slate-500 dark:text-slate-300 sm:grid-cols-2">
+          {siteKey && (
+            <div className="mt-3">
+              <p className="text-xs text-slate-500 dark:text-slate-300">Keamanan: Turnstile</p>
+              <TurnstileWidget siteKey={siteKey} onToken={setTurnstileToken} />
+            </div>
+          )}
+          <dl className="mt-6 grid gap-4 text-xs text-slate-500 sm:grid-cols-2 dark:text-slate-300">
             <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/70 dark:bg-slate-900/70">
               <dt className="font-medium text-slate-700 dark:text-slate-200">Tombol pintas</dt>
-              <dd>Tekan <kbd className="rounded bg-slate-100 px-1 py-0.5 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-200">R</kbd> untuk toggle</dd>
+              <dd>
+                Tekan{' '}
+                <kbd className="rounded bg-slate-100 px-1 py-0.5 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                  R
+                </kbd>{' '}
+                untuk toggle
+              </dd>
             </div>
             <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/70 dark:bg-slate-900/70">
               <dt className="font-medium text-slate-700 dark:text-slate-200">SSE reconnect</dt>
@@ -508,10 +576,12 @@ export default function HomeInteractive(): ReactElement {
         <div className="rounded-3xl border border-slate-200/80 bg-white/80 p-10 shadow-lg shadow-slate-900/10 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-none">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Upload Audio</h2>
+              <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">
+                Upload Audio
+              </h2>
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">
-                Validasi ukuran {MAX_FILE_SIZE_MB}MB & durasi {MAX_AUDIO_DURATION_MINUTES} menit sebelum
-                diproses di edge.
+                Validasi ukuran {MAX_FILE_SIZE_MB}MB & durasi {MAX_AUDIO_DURATION_MINUTES} menit
+                sebelum diproses di edge.
               </p>
             </div>
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-200">
@@ -529,15 +599,27 @@ export default function HomeInteractive(): ReactElement {
             />
             Tarik & lepas atau pilih file audio Anda
           </label>
+          {siteKey && (
+            <div className="mt-3">
+              <TurnstileWidget siteKey={siteKey} onToken={setTurnstileToken} />
+              <p className="mt-2 text-xs text-slate-400">
+                Token keamanan akan dikirim saat memulai proses.
+              </p>
+            </div>
+          )}
           <p className="mt-4 text-xs text-slate-400">Format didukung: MP3, WAV, M4A, FLAC</p>
-          <div className="mt-4 rounded-2xl border border-slate-200/70 bg-white/70 p-4 text-xs text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-300" aria-live="polite">
+          <div
+            className="mt-4 rounded-2xl border border-slate-200/70 bg-white/70 p-4 text-xs text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-300"
+            aria-live="polite"
+          >
             {fallback.status === 'loading' && 'Mengolah dengan Transformers.js fallback…'}
             {fallback.status === 'ready' &&
               (fallback.reason ? 'Fallback siap · ' + fallback.reason : 'Fallback siap digunakan')}
             {fallback.status === 'checking' && 'Memeriksa kesiapan fallback…'}
             {fallback.status === 'blocked' &&
               'Fallback tidak tersedia: ' + (fallback.reason ?? 'tidak diketahui')}
-            {fallback.status === 'error' && ('Fallback error: ' + (fallback.error || 'Unknown error'))}
+            {fallback.status === 'error' &&
+              'Fallback error: ' + (fallback.error || 'Unknown error')}
             {fallback.latencyMs && fallback.status === 'ready'
               ? ' · Latensi ' + (fallback.latencyMs / 1000).toFixed(1) + 's'
               : null}
@@ -577,8 +659,8 @@ export default function HomeInteractive(): ReactElement {
           </span>
           {totalChunks > 0 && (
             <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-200">
-              {progress.raw}/{totalChunks} raw · {progress.quick}/{totalChunks} quick · {progress.enhanced}/
-              {totalChunks} enhanced
+              {progress.raw}/{totalChunks} raw · {progress.quick}/{totalChunks} quick ·{' '}
+              {progress.enhanced}/{totalChunks} enhanced
             </span>
           )}
         </div>

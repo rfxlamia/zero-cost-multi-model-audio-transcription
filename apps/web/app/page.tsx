@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import type { ReactElement } from 'react'
 import HomeClientShell from './components/home-client-shell'
 
@@ -43,9 +42,11 @@ function HeroSection(): ReactElement {
           <div className="flex flex-wrap items-center gap-4">
             <a
               href="#panel-transkripsi"
-              className="inline-flex items-center gap-3 rounded-full bg-emerald-500 px-6 py-3 text-sm font-medium text-emerald-950 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-300"
+              className="inline-flex items-center gap-3 rounded-full bg-emerald-500 px-6 py-3 text-sm font-medium text-emerald-950 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2"
             >
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-950/20 text-base">▶</span>
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-950/20 text-base">
+                ▶
+              </span>
               Mulai transkripsi sekarang
             </a>
             <a
@@ -76,7 +77,9 @@ function HeroSection(): ReactElement {
           <div className="relative w-full max-w-md rounded-[2.5rem] border border-slate-700/60 bg-slate-900/50 p-8 shadow-xl shadow-indigo-500/20">
             <div className="flex items-center justify-between text-xs text-slate-400">
               <span className="inline-flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">●</span>
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+                  ●
+                </span>
                 SSE status
               </span>
               <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[11px] uppercase tracking-widest">
@@ -93,9 +96,14 @@ function HeroSection(): ReactElement {
                   </span>
                 </div>
                 <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                  <div className="h-2 rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-400" style={{ width: '68%' }} />
+                  <div
+                    className="h-2 rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-400"
+                    style={{ width: '68%' }}
+                  />
                 </div>
-                <p className="mt-3 text-xs text-slate-400">Chunks processed · raw 5/8 · quick 3/8 · enhanced 2/8</p>
+                <p className="mt-3 text-xs text-slate-400">
+                  Chunks processed · raw 5/8 · quick 3/8 · enhanced 2/8
+                </p>
               </div>
               <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 text-xs">
                 <p className="font-medium text-slate-300">Event log</p>
@@ -138,7 +146,10 @@ function FeatureHighlights(): ReactElement {
 export default function Page(): ReactElement {
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-50 pb-24 pt-16 text-slate-900 dark:bg-slate-950 dark:text-white">
-      <div className="absolute top-[-15%] left-1/2 -z-10 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-indigo-400/20 blur-3xl" aria-hidden />
+      <div
+        className="absolute left-1/2 top-[-15%] -z-10 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-indigo-400/20 blur-3xl"
+        aria-hidden
+      />
       <div className="container mx-auto flex max-w-6xl flex-col gap-20 px-4 lg:px-8">
         <HeroSection />
         <section id="panel-transkripsi" className="scroll-mt-32">
