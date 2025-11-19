@@ -1,0 +1,14 @@
+{
+  "license": "mit",
+  "owner": "transcriptorAI",
+  "year": "2025",
+  "url": "http://local_proxy@127.0.0.1:27079/git/rfxlamia/zero-cost-multi-model-audio-transcription",
+  "scanResult": {
+    "timestamp": "2025-11-19T06:01:18.436Z",
+    "totalDependencies": 0,
+    "compatible": 0,
+    "incompatible": 0,
+    "unknown": 0,
+    "issues": []
+  }
+}

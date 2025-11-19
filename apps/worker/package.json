@@ -13,19 +13,19 @@
     "test:stable": "vitest run --pool=threads --poolOptions.threads.maxThreads=1 --poolOptions.threads.minThreads=1"
   },
   "dependencies": {
-    "hono": "^4.9.7",
+    "hono": "^4.10.6",
     "@transcriptorai/shared": "workspace:*"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241018.0",
-    "@typescript-eslint/eslint-plugin": "^8.7.0",
-    "@typescript-eslint/parser": "^8.7.0",
-    "eslint": "^9.11.1",
-    "miniflare": "^3.20241018.0",
-    "prettier": "^3.3.3",
-    "typescript": "^5.6.2",
-    "vitest": "^2.1.1",
-    "wrangler": "^4.36.0"
+    "@cloudflare/workers-types": "^4.20251119.0",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
+    "eslint": "^9.39.1",
+    "miniflare": "^4.20251113.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.10",
+    "wrangler": "^4.49.0"
   },
   "eslintConfig": {
     "extends": [
